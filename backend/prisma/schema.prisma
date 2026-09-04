@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  COMMERCIAL
+}
+
+enum ClientStatus {
+  PROSPECT
+  ACTIVE
+  INACTIVE
+  TO_FOLLOW_UP
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id         Int         @id @default(autoincrement())
+  name       String
+  email      String      @unique
+  password   String
+  role       Role        @default(COMMERCIAL)
+  clients    Client[]
+  visits     Visit[]
+  orders     Order[]
+  objectives Objective[]
+  createdAt  DateTime    @default(now())
+}
+
+model Client {
+  id           Int          @id @default(autoincrement())
+  name         String
+  status       ClientStatus @default(PROSPECT)
+  location     String?
+  type         String?
+  commercialId Int
+  commercial   User         @relation(fields: [commercialId], references: [id])
+  visits       Visit[]
+  orders       Order[]
+  createdAt    DateTime     @default(now())
+}
+
+model Visit {
+  id             Int       @id @default(autoincrement())
+  clientId       Int
+  client         Client    @relation(fields: [clientId], references: [id])
+  commercialId   Int
+  commercial     User      @relation(fields: [commercialId], references: [id])
+  date           DateTime  @default(now())
+  result         String
+  comment        String?
+  orderPlaced    Boolean   @default(false)
+  nextActionDate DateTime?
+  createdAt      DateTime  @default(now())
+}
+
+model Order {
+  id           Int         @id @default(autoincrement())
+  clientId     Int
+  client       Client      @relation(fields: [clientId], references: [id])
+  commercialId Int
+  commercial   User        @relation(fields: [commercialId], references: [id])
+  date         DateTime    @default(now())
+  total        Float       @default(0)
+  status       OrderStatus @default(PENDING)
+  items        OrderItem[]
+}
+
+model OrderItem {
+  id       Int    @id @default(autoincrement())
+  orderId  Int
+  order    Order  @relation(fields: [orderId], references: [id])
+  product  String
+  quantity Int
+  price    Float
+}
+
+model Objective {
+  id            Int    @id @default(autoincrement())
+  commercialId  Int
+  commercial    User   @relation(fields: [commercialId], references: [id])
+  period        String
+  targetVisits  Int    @default(0)
+  targetClients Int    @default(0)
+  targetRevenue Float  @default(0)
+  actualVisits  Int    @default(0)
+  actualClients Int    @default(0)
+  actualRevenue Float  @default(0)
+}
