@@ -1,36 +1,44 @@
 import { useEffect, useState } from "react";
+import Layout from "../components/Layout";
 import api from "../lib/api";
 
 export default function CommercialDashboard() {
   const [clients, setClients] = useState([]);
 
   useEffect(() => {
-    api.get("/clients").then((res) => setClients(res.data));
+    api.get("/clients").then((res) => setClients(res.data)).catch(() => {});
   }, []);
 
+  const toFollowUp = clients.filter((c) => c.status === "TO_FOLLOW_UP");
+
   return (
-    <div className="p-6">
-      <h1 className="text-lg font-semibold mb-4">My clients</h1>
-      <div className="border border-grey-200 rounded-lg overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-grey-50 text-grey-600">
-            <tr>
-              <th className="px-4 py-2">Name</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Location</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clients.map((c) => (
-              <tr key={c.id} className="border-t border-grey-200">
-                <td className="px-4 py-2">{c.name}</td>
-                <td className="px-4 py-2">{c.status}</td>
-                <td className="px-4 py-2">{c.location || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <Layout title="Tableau de bord">
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-white border border-grey-200 rounded-lg p-4">
+          <p className="text-2xl font-semibold text-ink">{clients.length}</p>
+          <p className="text-sm text-grey-600">Mes clients</p>
+        </div>
+        <div className="bg-white border border-grey-200 rounded-lg p-4">
+          <p className="text-2xl font-semibold text-ink">{toFollowUp.length}</p>
+          <p className="text-sm text-grey-600">À relancer</p>
+        </div>
+        <div className="bg-white border border-grey-200 rounded-lg p-4">
+          <p className="text-2xl font-semibold text-ink">—</p>
+          <p className="text-sm text-grey-600">Visites ce mois</p>
+        </div>
       </div>
-    </div>
+
+      <div className="bg-white border border-grey-200 rounded-lg p-4">
+        <h2 className="text-sm font-semibold text-ink mb-3">Clients à relancer</h2>
+        {toFollowUp.length === 0 && (
+          <p className="text-sm text-grey-600">Aucun client à relancer pour le moment.</p>
+        )}
+        {toFollowUp.map((c) => (
+          <div key={c.id} className="text-sm py-2 border-t border-grey-100 first:border-t-0">
+            {c.name}
+          </div>
+        ))}
+      </div>
+    </Layout>
   );
 }
