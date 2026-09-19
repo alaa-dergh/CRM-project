@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 
 const statusOptions = [
   { value: "PROSPECT", label: "Prospect" },
@@ -8,13 +9,23 @@ const statusOptions = [
   { value: "TO_FOLLOW_UP", label: "À relancer" },
 ];
 
-export default function ClientFormModal({ onClose, onCreated }) {
-  const [name, setName] = useState("");
-  const [location, setLocation] = useState("");
-  const [type, setType] = useState("");
-  const [status, setStatus] = useState("PROSPECT");
+export default function ClientFormModal({ onClose, onCreated, onUpdated, existingClient }) {
+  const [name, setName] = useState(existingClient?.name || "");
+  const [phone, setPhone] = useState(existingClient?.phone || "");
+  const [location, setLocation] = useState(existingClient?.location || "");
+  const [type, setType] = useState(existingClient?.type || "");
+  const [status, setStatus] = useState(existingClient?.status || "PROSPECT");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
+  const [commercials, setCommercials] = useState([]);
+  const [commercialId, setCommercialId] = useState(existingClient?.commercialId || "");
+
+  useEffect(() => {
+    if (user?.role === "ADMIN") {
+      api.get("/users").then((res) => setCommercials(res.data)).catch(() => {});
+    }
+  }, [user]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -27,8 +38,18 @@ export default function ClientFormModal({ onClose, onCreated }) {
 
     setSaving(true);
     try {
-      const { data } = await api.post("/clients", { name, location, type, status });
-      onCreated(data);
+      if (existingClient) {
+        const { data } = await api.put(`/clients/${existingClient.id}`, {
+          name, phone, location, type, status,
+        });
+        onUpdated(data);
+      } else {
+        const { data } = await api.post("/clients", {
+          name, phone, location, type, status,
+          ...(user?.role === "ADMIN" ? { commercialId } : {}),
+        });
+        onCreated(data);
+      }
       onClose();
     } catch (err) {
       setError("Impossible d'enregistrer le client. Réessayez.");
@@ -45,7 +66,9 @@ export default function ClientFormModal({ onClose, onCreated }) {
     >
       <div className="bg-white rounded-lg w-full max-w-lg border border-grey-200" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-grey-200">
-          <h2 className="text-base font-semibold text-ink">+ Ajouter un client</h2>
+          <h2 className="text-base font-semibold text-ink">
+            {existingClient ? "Modifier le client" : "+ Ajouter un client"}
+          </h2>
           <button onClick={onClose} className="text-grey-400 hover:text-ink text-lg leading-none">×</button>
         </div>
 
@@ -65,6 +88,35 @@ export default function ClientFormModal({ onClose, onCreated }) {
                 onChange={(e) => setName(e.target.value)}
                 className="w-full h-9 px-3 border border-grey-200 rounded text-sm focus:outline-none focus:border-ink"
                 required
+              />
+            </div>
+
+            {user?.role === "ADMIN" && !existingClient && (
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-grey-600 mb-1">
+                  Commercial responsable
+                </label>
+                <select
+                  value={commercialId}
+                  onChange={(e) => setCommercialId(e.target.value)}
+                  className="w-full h-9 px-3 border border-grey-200 rounded text-sm bg-white"
+                >
+                  <option value="">Non assigné (moi-même)</option>
+                  {commercials.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-medium text-grey-600 mb-1">Téléphone</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="06 XX XX XX XX"
+                className="w-full h-9 px-3 border border-grey-200 rounded text-sm focus:outline-none focus:border-ink"
               />
             </div>
 
@@ -90,7 +142,7 @@ export default function ClientFormModal({ onClose, onCreated }) {
               />
             </div>
 
-            <div className="col-span-2">
+            <div>
               <label className="block text-xs font-medium text-grey-600 mb-1">Statut</label>
               <select
                 value={status}
@@ -109,7 +161,7 @@ export default function ClientFormModal({ onClose, onCreated }) {
               Annuler
             </button>
             <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-ink text-white rounded hover:bg-charcoal disabled:opacity-50">
-              {saving ? "Enregistrement..." : "✓ Enregistrer le client"}
+              {saving ? "Enregistrement..." : existingClient ? "✓ Enregistrer les modifications" : "✓ Enregistrer le client"}
             </button>
           </div>
         </form>

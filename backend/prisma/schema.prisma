@@ -32,6 +32,8 @@ model User {
   email      String      @unique
   password   String
   role       Role        @default(COMMERCIAL)
+  isActive   Boolean     @default(true)
+  region     String?
   clients    Client[]
   visits     Visit[]
   orders     Order[]
@@ -42,6 +44,7 @@ model User {
 model Client {
   id           Int          @id @default(autoincrement())
   name         String
+  phone        String?
   status       ClientStatus @default(PROSPECT)
   location     String?
   type         String?

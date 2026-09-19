@@ -29,9 +29,9 @@ export default function Layout({ children, title }) {
 
   return (
     <div className="min-h-screen flex bg-white">
-      <aside className="w-56 bg-ink text-white flex flex-col shrink-0">
-        <div className="h-16 flex items-center px-5 border-b border-white/10">
-          <span className="font-semibold tracking-wide text-sm">SALES CRM</span>
+      <aside className="w-56 bg-[#121C28] text-white flex flex-col shrink-0">
+        <div className="h-16 flex items-center px-5 border-b border-white/10 bg-black">
+          <span className="font-semibold tracking-wide text-sm ">APEX CRM</span>
         </div>
         <nav className="flex-1 py-4">
           {links.map((link) => {
@@ -61,15 +61,15 @@ export default function Layout({ children, title }) {
 
       <div className="flex-1 flex flex-col">
         <header className="h-16 border-b border-grey-200 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-base font-semibold text-ink">{title}</h1>
+          <h1 className="text-base text-xl font-semibold text-ink">{title}</h1>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-grey-600">{user?.name}</span>
-            <span className="text-xs px-2 py-0.5 bg-grey-100 border border-grey-200 rounded text-grey-600">
+            <span className="text-md text-grey-600 px-2 py-0.5">{user?.name}</span>
+            <span className="text-xs px-2 py-0.5 bg-[#E2E8F8] border border-grey-200 rounded text-grey-600">
               {user?.role}
             </span>
             <button
               onClick={handleLogout}
-              className="text-sm text-grey-600 hover:text-ink"
+              className="text-xs text-white px-2 py-0.5 bg-black border  rounded text-grey-600"
             >
               Déconnexion
             </button>

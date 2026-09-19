@@ -6,6 +6,10 @@ import CommercialDashboard from "./pages/CommercialDashboard";
 import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import AdminDashboard from "./pages/AdminDashboard";
+import Visits from "./pages/Visits";
+import Orders from "./pages/Orders";
+import Commerciaux from "./pages/Commerciaux";
+import AdminClients from "./pages/AdminClients";
 
 export default function App() {
   return (
@@ -21,8 +25,9 @@ export default function App() {
           <Route path="/clients" element={
             <ProtectedRoute roles={["COMMERCIAL"]}><Clients /></ProtectedRoute>
           } />
+
           <Route path="/clients/:id" element={
-            <ProtectedRoute roles={["COMMERCIAL"]}><ClientDetail /></ProtectedRoute>
+          <ProtectedRoute roles={["COMMERCIAL", "ADMIN"]}><ClientDetail /></ProtectedRoute>
           } />
 
           <Route
@@ -33,8 +38,23 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/admin/clients" element={
+          <ProtectedRoute roles={["ADMIN"]}><AdminClients /></ProtectedRoute>
+          } />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
+
+          <Route path="/visits" element={
+            <ProtectedRoute roles={["COMMERCIAL"]}><Visits /></ProtectedRoute>
+          } />
+
+          <Route path="/orders" element={
+            <ProtectedRoute roles={["COMMERCIAL"]}><Orders /></ProtectedRoute>
+          } />
+
+          <Route path="/admin/reps" element={
+          <ProtectedRoute roles={["ADMIN"]}><Commerciaux /></ProtectedRoute>
+          } />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

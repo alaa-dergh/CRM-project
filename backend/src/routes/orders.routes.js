@@ -79,6 +79,52 @@ router.post("/", async (req, res) => {
   }
 });
 
+// PUT /api/orders/:id  (edit client-side details: items and/or status)
+router.put("/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = await prisma.order.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: "Order not found" });
+
+    if (req.user.role !== "ADMIN" && existing.commercialId !== req.user.id) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const { items, status } = req.body;
+    let total = existing.total;
+
+    if (Array.isArray(items) && items.length > 0) {
+      total = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
+      await prisma.orderItem.deleteMany({ where: { orderId: id } });
+    }
+
+    const order = await prisma.order.update({
+      where: { id },
+      data: {
+        status: status || existing.status,
+        total,
+        ...(Array.isArray(items) && items.length > 0
+          ? {
+              items: {
+                create: items.map((i) => ({
+                  product: i.product,
+                  quantity: Number(i.quantity),
+                  price: Number(i.price),
+                })),
+              },
+            }
+          : {}),
+      },
+      include: { items: true },
+    });
+
+    res.json(order);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update order" });
+  }
+});
+
 // PUT /api/orders/:id/status
 router.put("/:id/status", async (req, res) => {
   try {
