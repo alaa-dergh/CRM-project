@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import CommercialFormModal from "../components/CommercialFormModal";
 import api from "../lib/api";
+import { useNavigate } from "react-router-dom";
+
 
 export default function Commerciaux() {
   const [users, setUsers] = useState([]);
@@ -10,6 +12,7 @@ export default function Commerciaux() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadUsers();
@@ -100,7 +103,11 @@ export default function Commerciaux() {
             </thead>
             <tbody>
               {filtered.map((u) => (
-                <tr key={u.id} className="border-t border-grey-200 hover:bg-grey-50">
+                <tr
+                  key={u.id}
+                  onClick={() => navigate(`/admin/reps/${u.id}`)}
+                  className="border-t border-grey-200 hover:bg-grey-50 cursor-pointer"
+                >
                   <td className="px-4 py-2 font-medium text-ink">{u.name}</td>
                   <td className="px-4 py-2 text-grey-600">{u.email}</td>
                   <td className="px-4 py-2 text-grey-600">{u.region || "—"}</td>
@@ -116,7 +123,10 @@ export default function Commerciaux() {
                       {u.isActive ? "Actif" : "Inactif"}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-right whitespace-nowrap">
+                  <td
+                    className="px-4 py-2 text-right whitespace-nowrap"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <button
                       onClick={() => setEditingUser(u)}
                       className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100 mr-1"

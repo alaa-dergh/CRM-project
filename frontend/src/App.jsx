@@ -10,6 +10,8 @@ import Visits from "./pages/Visits";
 import Orders from "./pages/Orders";
 import Commerciaux from "./pages/Commerciaux";
 import AdminClients from "./pages/AdminClients";
+import CommercialDetail from "./pages/CommercialDetails";
+import AdminObjectives from "./pages/AdminObjectives";
 
 export default function App() {
   return (
@@ -54,6 +56,15 @@ export default function App() {
 
           <Route path="/admin/reps" element={
           <ProtectedRoute roles={["ADMIN"]}><Commerciaux /></ProtectedRoute>
+          } />
+
+          <Route path="/admin/reps/:id" element={
+           <ProtectedRoute roles={["ADMIN"]}><CommercialDetail /></ProtectedRoute>
+          } />
+
+
+          <Route path="/admin/objectives" element={
+          <ProtectedRoute roles={["ADMIN"]}><AdminObjectives /></ProtectedRoute>
           } />
         </Routes>
       </BrowserRouter>

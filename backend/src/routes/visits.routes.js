@@ -52,6 +52,20 @@ router.post("/", async (req, res) => {
       },
     });
 
+    // Auto-update the client's status based on this visit's outcome
+    if (result === "Relance nécessaire") {
+      await prisma.client.update({
+        where: { id: Number(clientId) },
+        data: { status: "TO_FOLLOW_UP" },
+      });
+    }
+    if (result === "Commande signée") {
+      await prisma.client.update({
+        where: { id: Number(clientId) },
+        data: { status: "ACTIVE" },
+      });
+    }
+
     res.status(201).json(visit);
   } catch (err) {
     console.error(err);
@@ -81,6 +95,20 @@ router.put("/:id", async (req, res) => {
         nextActionDate: nextActionDate ? new Date(nextActionDate) : undefined,
       },
     });
+
+    if (result === "Relance nécessaire") {
+      await prisma.client.update({
+        where: { id: existing.clientId },
+        data: { status: "TO_FOLLOW_UP" },
+      });
+    }
+    if (result === "Commande signée") {
+      await prisma.client.update({
+        where: { id: existing.clientId },
+        data: { status: "ACTIVE" },
+      });
+    }
+
 
     res.json(visit);
   } catch (err) {

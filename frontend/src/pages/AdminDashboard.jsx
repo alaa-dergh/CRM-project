@@ -1,12 +1,247 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import api from "../lib/api";
+
+function currentPeriod() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatCurrency(amount) {
+  return `${Math.round(amount || 0).toLocaleString("fr-FR")} DA`;
+}
+
 export default function AdminDashboard() {
-    return (
-        <Layout title="Tableau de bord">
-          <p className="text-sm text-grey-600 mb-4">
-            Admin dashboard page.
+  const [commerciaux, setCommerciaux] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [visits, setVisits] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [objectives, setObjectives] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      api.get("/users").then((res) => setCommerciaux(res.data.filter((u) => u.role !== "ADMIN"))).catch(() => {}),
+      api.get("/clients").then((res) => setClients(res.data)).catch(() => {}),
+      api.get("/visits").then((res) => setVisits(res.data)).catch(() => {}),
+      api.get("/orders").then((res) => setOrders(res.data)).catch(() => {}),
+      api
+        .get(`/objectives?period=${currentPeriod()}`)
+        .then((res) => setObjectives(res.data))
+        .catch(() => setObjectives([])),
+    ]).finally(() => setLoading(false));
+  }, []);
+
+  const now = new Date();
+  const isToday = (dateStr) => {
+    const d = new Date(dateStr);
+    return d.toDateString() === now.toDateString();
+  };
+  const isThisMonth = (dateStr) => {
+    const d = new Date(dateStr);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  };
+
+  // --- KPI globaux ---
+  const totalClients = clients.length;
+  const newClientsThisMonth = clients.filter((c) => isThisMonth(c.createdAt)).length;
+  const totalProspects = clients.filter((c) => c.status === "PROSPECT").length;
+
+  const visitsToday = visits.filter((v) => isToday(v.date)).length;
+  const visitsTargetToday = objectives.reduce((sum, o) => sum + (o.targetVisitsPerDay || 0), 0);
+
+  const visitsThisMonth = visits.filter((v) => isThisMonth(v.date));
+  const ordersThisMonth = orders.filter((o) => isThisMonth(o.date));
+  const conversionRate = visitsThisMonth.length
+    ? Math.round((visitsThisMonth.filter((v) => v.orderPlaced).length / visitsThisMonth.length) * 100)
+    : 0;
+
+  const revenueThisMonth = ordersThisMonth.reduce((sum, o) => sum + o.total, 0);
+  const revenueTarget = objectives.reduce((sum, o) => sum + (o.targetRevenue || 0), 0);
+  const revenuePct = revenueTarget ? Math.round((revenueThisMonth / revenueTarget) * 100) : null;
+
+  // --- Performance par commercial (mois en cours) ---
+  const performance = commerciaux.map((c) => {
+    const cVisits = visitsThisMonth.filter((v) => v.commercialId === c.id).length;
+    const cNewClients = clients.filter((cl) => cl.commercialId === c.id && isThisMonth(cl.createdAt)).length;
+    const cOrders = ordersThisMonth.filter((o) => o.commercialId === c.id);
+    const cRevenue = cOrders.reduce((sum, o) => sum + o.total, 0);
+    const objective = objectives.find((o) => o.commercialId === c.id);
+    const target = objective?.targetRevenue || null;
+    const pct = target ? Math.round((cRevenue / target) * 100) : null;
+
+    return {
+      id: c.id,
+      name: c.name,
+      visits: cVisits,
+      newClients: cNewClients,
+      orders: cOrders.length,
+      revenue: cRevenue,
+      target,
+      pct,
+    };
+  }).sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
+
+  const totals = performance.reduce(
+    (acc, p) => ({
+      visits: acc.visits + p.visits,
+      newClients: acc.newClients + p.newClients,
+      orders: acc.orders + p.orders,
+      revenue: acc.revenue + p.revenue,
+      target: acc.target + (p.target || 0),
+    }),
+    { visits: 0, newClients: 0, orders: 0, revenue: 0, target: 0 }
+  );
+  const totalPct = totals.target ? Math.round((totals.revenue / totals.target) * 100) : null;
+
+  function pctBadgeClass(pct) {
+    if (pct === null) return "bg-grey-100 text-grey-500 border-grey-200";
+    if (pct >= 90) return "bg-green-50 text-green-700 border-green-200";
+    if (pct >= 75) return "bg-yellow-50 text-yellow-700 border-yellow-200";
+    return "bg-red-50 text-red-700 border-red-200";
+  }
+
+  return (
+    <Layout title="Tableau de bord (Admin)">
+      <p className="text-sm text-grey-600 mb-4">
+        Supervision globale des équipes commerciales et du chiffre d'affaires consolidé.
+      </p>
+
+      <div className="grid grid-cols-5 gap-4 mb-6">
+        {/* Total clients */}
+        <div className="bg-white border border-grey-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
+              Total clients
+            </span>
+            {newClientsThisMonth > 0 && (
+              <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded">
+                +{newClientsThisMonth}
+              </span>
+            )}
+          </div>
+          <span className="text-2xl font-semibold text-ink">{totalClients}</span>
+        </div>
+
+        {/* Total prospects */}
+        <div className="bg-white border border-grey-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
+              Total prospects
+            </span>
+          </div>
+          <span className="text-2xl font-semibold text-ink">{totalProspects}</span>
+        </div>
+
+        {/* Visites aujourd'hui */}
+        <div className="bg-white border border-grey-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
+              Visites aujourd'hui
+            </span>
+            <span className="text-xs px-2 py-0.5 bg-grey-100 text-grey-600 border border-grey-200 rounded">
+              {visitsTargetToday ? `Obj: ${visitsTargetToday}` : "Objectif non défini"}
+            </span>
+          </div>
+          <span className="text-2xl font-semibold text-ink">{visitsToday}</span>
+        </div>
+
+        {/* Commandes ce mois */}
+        <div className="bg-white border border-grey-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
+              Commandes ce mois
+            </span>
+            <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded">
+              {conversionRate}% conv.
+            </span>
+          </div>
+          <span className="text-2xl font-semibold text-ink">{ordersThisMonth.length}</span>
+        </div>
+
+        {/* CA ce mois */}
+        <div className="bg-white border border-grey-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
+              CA ce mois
+            </span>
+            <span className="text-xs px-2 py-0.5 bg-grey-100 text-grey-600 border border-grey-200 rounded">
+              {revenueTarget ? `Obj: ${formatCurrency(revenueTarget)}` : "Objectif non défini"}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-semibold text-ink">{formatCurrency(revenueThisMonth)}</span>
+            {revenuePct !== null && (
+              <span className="text-xs text-grey-500">{revenuePct}%</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Performance par commercial */}
+      <div className="bg-white border border-grey-200 rounded-lg overflow-hidden">
+        <div className="px-4 pt-4 pb-2">
+          <h2 className="text-sm font-semibold text-ink">Performance par commercial</h2>
+          <p className="text-xs text-grey-500">
+            Indicateurs du mois en cours, triés par taux d'atteinte du CA décroissant.
           </p>
-        </Layout>
-    );
+        </div>
+
+        {!loading && performance.length === 0 && (
+          <p className="text-sm text-grey-600 px-4 pb-4">Aucun commercial trouvé.</p>
+        )}
+
+        {performance.length > 0 && (
+          <table className="w-full text-sm text-left">
+            <thead className="bg-[#F0F3FF] text-grey-600">
+              <tr>
+                <th className="px-4 py-2">Commercial</th>
+                <th className="px-4 py-2">Visites</th>
+                <th className="px-4 py-2">Nouveaux clients</th>
+                <th className="px-4 py-2">Commandes</th>
+                <th className="px-4 py-2">CA réalisé</th>
+                <th className="px-4 py-2">Objectif CA</th>
+                <th className="px-4 py-2">Taux (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {performance.map((p) => (
+                <tr key={p.id} className="border-t border-grey-100">
+                  <td className="px-4 py-2 font-medium text-ink">{p.name}</td>
+                  <td className="px-4 py-2 text-grey-600">{p.visits}</td>
+                  <td className="px-4 py-2 text-grey-600">{p.newClients}</td>
+                  <td className="px-4 py-2 text-grey-600">{p.orders}</td>
+                  <td className="px-4 py-2 text-grey-600">{formatCurrency(p.revenue)}</td>
+                  <td className="px-4 py-2 text-grey-600">
+                    {p.target ? formatCurrency(p.target) : "—"}
+                  </td>
+                  <td className="px-4 py-2">
+                    <span className={`text-xs px-2 py-0.5 rounded border ${pctBadgeClass(p.pct)}`}>
+                      {p.pct !== null ? `${p.pct}%` : "—"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-grey-200 bg-grey-50 font-medium">
+                <td className="px-4 py-2 text-ink">Total consolidation</td>
+                <td className="px-4 py-2 text-ink">{totals.visits}</td>
+                <td className="px-4 py-2 text-ink">{totals.newClients}</td>
+                <td className="px-4 py-2 text-ink">{totals.orders}</td>
+                <td className="px-4 py-2 text-ink">{formatCurrency(totals.revenue)}</td>
+                <td className="px-4 py-2 text-ink">{totals.target ? formatCurrency(totals.target) : "—"}</td>
+                <td className="px-4 py-2">
+                  <span className={`text-xs px-2 py-0.5 rounded border ${pctBadgeClass(totalPct)}`}>
+                    {totalPct !== null ? `${totalPct}%` : "—"}
+                  </span>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        )}
+      </div>
+    </Layout>
+  );
 }

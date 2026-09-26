@@ -15,16 +15,26 @@ router.get("/", async (req, res) => {
       include: {
         commercial: { select: { id: true, name: true } },
         visits: { orderBy: { date: "desc" }, take: 1 },
-        orders: { select: { total: true } },
+        orders: { orderBy: { date: "desc" }, take: 1, select: { date: true, total: true } },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    const enriched = clients.map((c) => ({
-      ...c,
-      lastVisitDate: c.visits[0]?.date || null,
-      totalRevenue: c.orders.reduce((sum, o) => sum + o.total, 0),
-    }));
+    const enriched = clients.map((c) => {
+      const lastVisitDate = c.visits[0]?.date || null;
+      const lastOrderDate = c.orders[0]?.date || null;
+      const lastInteractionDate =
+        lastVisitDate && lastOrderDate
+          ? (new Date(lastVisitDate) > new Date(lastOrderDate) ? lastVisitDate : lastOrderDate)
+          : lastVisitDate || lastOrderDate || null;
+
+      return {
+        ...c,
+        lastVisitDate,
+        lastInteractionDate,
+        totalRevenue: c.orders.reduce((sum, o) => sum + o.total, 0),
+      };
+    });
 
     res.json(enriched);
   } catch (err) {

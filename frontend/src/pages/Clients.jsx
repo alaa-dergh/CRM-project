@@ -13,7 +13,7 @@ const statusLabels = {
 
 const statusStyles = {
   PROSPECT: "bg-[#F7F02C] text-black border-yellow-200",
-  ACTIVE: "bg-[#25931D] text-white border-green-200",
+  ACTIVE: "bg-[#348133] text-white border-green-200",
   INACTIVE: "bg-[#CC1A17] text-white border-red-200",
   TO_FOLLOW_UP: "bg-ink text-white border-ink",
 };
@@ -140,7 +140,7 @@ export default function Clients() {
                   <td className="px-4 py-2 font-medium text-ink">{client.name}</td>
                   <td className="px-4 py-2">
                     <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium border ${
+                      className={`inline-flex w-20 justify-center items-center px-2 py-1 rounded text-xs font-medium border ${
                         statusStyles[client.status] || "bg-grey-100 text-grey-600 border-grey-200"
                       }`}
                     >

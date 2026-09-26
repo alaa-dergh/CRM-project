@@ -204,7 +204,7 @@ export default function AdminClients() {
                   <td className="px-4 py-2 font-medium text-ink">{client.name}</td>
                   <td className="px-4 py-2">
                     <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium border ${
+                      className={`inline-flex w-20 justify-center items-center px-2 py-1 rounded text-xs font-medium border ${
                         statusStyles[client.status] || "bg-grey-100 text-grey-600 border-grey-200"
                       }`}
                     >

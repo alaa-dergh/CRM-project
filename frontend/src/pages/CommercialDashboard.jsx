@@ -2,29 +2,45 @@ import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import api from "../lib/api";
 
-function currentPeriod() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
 function formatCurrency(amount) {
   return `${Math.round(amount || 0).toLocaleString("fr-FR")} DA`;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("fr-FR");
 }
 
 export default function CommercialDashboard() {
   const [clients, setClients] = useState([]);
   const [visits, setVisits] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [objective, setObjective] = useState(null);
+  const [progress, setProgress] = useState(null);
+  const [progressError, setProgressError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/clients").then((res) => setClients(res.data)).catch(() => {});
-    api.get("/visits").then((res) => setVisits(res.data)).catch(() => {});
-    api.get("/orders").then((res) => setOrders(res.data)).catch(() => {});
-    api
-      .get(`/objectives?period=${currentPeriod()}`)
-      .then((res) => setObjective(res.data?.[0] || null))
-      .catch(() => setObjective(null));
+    setLoading(true);
+    Promise.all([
+      api.get("/clients").then((res) => setClients(res.data)).catch(() => {}),
+      api.get("/visits").then((res) => setVisits(res.data)).catch(() => {}),
+      api.get("/orders").then((res) => setOrders(res.data)).catch(() => {}),
+      api
+        .get("/objectives/progress")
+        .then((res) => {
+          setProgress(res.data);
+          setProgressError(null);
+        })
+        .catch((err) => {
+          console.error("Erreur /objectives/progress:", err);
+          setProgress(null);
+          setProgressError(
+            err?.response?.data?.error ||
+              err?.message ||
+              "Impossible de charger les objectifs."
+          );
+        }),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const now = new Date();
@@ -39,24 +55,42 @@ export default function CommercialDashboard() {
   const activeClients = clients.filter((c) => c.status === "ACTIVE").length;
   const retentionRate = totalClients ? Math.round((activeClients / totalClients) * 100) : 0;
 
-  // --- Visites ---
+  // --- Visites du mois (pour le panier moyen / taux de conversion) ---
   const visitsThisMonth = visits.filter((v) => isThisMonth(v.date));
-  const visitsCount = visitsThisMonth.length;
-  const visitTarget = objective?.targetVisits || null;
-  const visitPct = visitTarget ? Math.round((visitsCount / visitTarget) * 100) : null;
+  const visitsCountThisMonth = visitsThisMonth.length;
 
-  // --- Commandes ---
+  // --- Commandes du mois (pour le panier moyen) ---
   const ordersThisMonth = orders.filter((o) => isThisMonth(o.date));
-  const ordersCount = ordersThisMonth.length;
-  const revenueThisMonth = ordersThisMonth.reduce((sum, o) => sum + o.total, 0);
-  const avgBasket = ordersCount ? revenueThisMonth / ordersCount : 0;
-  const conversionRate = visitsCount
-    ? Math.round((visitsThisMonth.filter((v) => v.orderPlaced).length / visitsCount) * 100)
+  const ordersCountThisMonth = ordersThisMonth.length;
+  const revenueFromOrdersList = ordersThisMonth.reduce((sum, o) => sum + o.total, 0);
+  const avgBasket = ordersCountThisMonth ? revenueFromOrdersList / ordersCountThisMonth : 0;
+  const conversionRate = visitsCountThisMonth
+    ? Math.round(
+        (visitsThisMonth.filter((v) => v.orderPlaced).length / visitsCountThisMonth) * 100
+      )
     : 0;
 
-  // --- CA ---
-  const revenueTarget = objective?.targetRevenue || null;
-  const revenuePct = revenueTarget ? Math.round((revenueThisMonth / revenueTarget) * 100) : null;
+  // --- Données objectifs / progression : uniquement depuis /objectives/progress ---
+  const contactsToday = progress?.contactsToday || { actual: 0, target: null };
+  const ordersToday = progress?.ordersToday || { actual: 0, minimum: null };
+  const revenueThisMonth = progress?.revenueThisMonth || { actual: 0, target: null };
+  const tasks = progress?.tasks || [];
+
+  const contactsPct =
+    contactsToday.target != null && contactsToday.target > 0
+      ? Math.round((contactsToday.actual / contactsToday.target) * 100)
+      : null;
+  const revenuePct =
+    revenueThisMonth.target != null && revenueThisMonth.target > 0
+      ? Math.round((revenueThisMonth.actual / revenueThisMonth.target) * 100)
+      : null;
+  const ordersOk =
+    ordersToday.minimum != null && ordersToday.minimum > 0
+      ? ordersToday.actual >= ordersToday.minimum
+      : null;
+
+  // objective === null alors que la requête a réussi -> aucun Objective en base pour ce commercial/cette période
+  const noObjectiveDefined = !progressError && progress && !progress.objective;
 
   const toFollowUp = clients.filter((c) => c.status === "TO_FOLLOW_UP");
 
@@ -65,6 +99,19 @@ export default function CommercialDashboard() {
       <p className="text-sm text-grey-600 mb-4">
         Aperçu de votre activité commerciale et relances prioritaires.
       </p>
+
+      {progressError && (
+        <div className="mb-4 px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          Erreur lors du chargement des objectifs : {progressError}
+        </div>
+      )}
+
+      {noObjectiveDefined && (
+        <div className="mb-4 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+          Aucun objectif n'est enregistré pour vous sur la période en cours. Demandez à
+          l'administrateur d'en définir un dans "Objectifs (Gestion)".
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-4 mb-6">
         {/* Mes clients */}
@@ -89,41 +136,46 @@ export default function CommercialDashboard() {
           </div>
         </div>
 
-        {/* Visites ce mois */}
+        {/* Visites aujourd'hui */}
         <div className="bg-white border border-grey-200 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
-              Visites ce mois
+              Visites aujourd'hui
             </span>
             <span className="text-xs px-2 py-0.5 bg-grey-100 text-grey-600 border border-grey-200 rounded">
-              {visitTarget ? `Obj: ${visitTarget}` : "Objectif non défini"}
+              {contactsToday.target != null ? `Obj: ${contactsToday.target}/jour` : "Objectif non défini"}
             </span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold text-ink">{visitsCount}</span>
+            <span className="text-2xl font-semibold text-ink">{contactsToday.actual}</span>
+            <span className="text-xs text-grey-500">Ce mois : {visitsCountThisMonth}</span>
           </div>
           <div className="flex justify-between text-xs text-grey-600 mt-3 pt-2 border-t border-grey-100">
             <span>Atteint</span>
-            <span className="font-medium text-ink">{visitPct !== null ? `${visitPct}%` : "—"}</span>
+            <span className="font-medium text-ink">
+              {contactsPct !== null ? `${contactsPct}%` : "—"}
+            </span>
           </div>
         </div>
 
-        {/* Commandes ce mois */}
+        {/* Commandes aujourd'hui */}
         <div className="bg-white border border-grey-200 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
-              Commandes ce mois
+              Commandes aujourd'hui
             </span>
             <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded">
               {conversionRate}% conv.
             </span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold text-ink">{ordersCount}</span>
-            <span className="text-xs text-grey-500">Sur {visitsCount} rdv</span>
+            <span className="text-2xl font-semibold text-ink">{ordersToday.actual}</span>
+            <span className="text-xs text-grey-500">
+              {ordersToday.minimum != null ? `Min: ${ordersToday.minimum}/jour` : "Minimum non défini"}
+            </span>
           </div>
           <div className="flex justify-between text-xs text-grey-600 mt-3 pt-2 border-t border-grey-100">
-            <span>Panier moyen</span>
+            <span>Panier moyen (mois)</span>
             <span className="font-medium text-ink">{formatCurrency(avgBasket)}</span>
           </div>
         </div>
@@ -135,29 +187,93 @@ export default function CommercialDashboard() {
               CA ce mois
             </span>
             <span className="text-xs px-2 py-0.5 bg-grey-100 text-grey-600 border border-grey-200 rounded">
-              {revenueTarget ? `Obj: ${formatCurrency(revenueTarget)}` : "Objectif non défini"}
+              {revenueThisMonth.target != null
+                ? `Obj: ${formatCurrency(revenueThisMonth.target)}`
+                : "Objectif non défini"}
             </span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold text-ink">{formatCurrency(revenueThisMonth)}</span>
+            <span className="text-2xl font-semibold text-ink">
+              {formatCurrency(revenueThisMonth.actual)}
+            </span>
           </div>
           <div className="flex justify-between text-xs text-grey-600 mt-3 pt-2 border-t border-grey-100">
             <span>Progression</span>
-            <span className="font-medium text-ink">{revenuePct !== null ? `${revenuePct}%` : "—"}</span>
+            <span className="font-medium text-ink">
+              {revenuePct !== null ? `${revenuePct}%` : "—"}
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="bg-white border border-grey-200 rounded-lg p-4">
-        <h2 className="text-sm font-semibold text-ink mb-3">Clients à relancer</h2>
-        {toFollowUp.length === 0 && (
-          <p className="text-sm text-grey-600">Aucun client à relancer pour le moment.</p>
-        )}
-        {toFollowUp.map((c) => (
-          <div key={c.id} className="text-sm py-2 border-t border-grey-100 first:border-t-0">
-            {c.name}
-          </div>
-        ))}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Mes tâches (clients à forte rotation) */}
+        <div className="bg-white border border-grey-200 rounded-lg overflow-hidden">
+          <h2 className="text-sm font-semibold text-ink px-4 pt-4 pb-2">Mes tâches</h2>
+          {!loading && tasks.length === 0 && (
+            <p className="text-sm text-grey-600 px-4 pb-4">Aucune tâche assignée.</p>
+          )}
+          {tasks.length > 0 && (
+            <table className="w-full text-sm text-left">
+              <thead className="bg-[#F0F3FF] text-grey-600">
+                <tr>
+                  <th className="px-4 py-2">Client</th>
+                  <th className="px-4 py-2">Visites ce mois</th>
+                  <th className="px-4 py-2">Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tasks.map((t) => (
+                  <tr key={t.id} className="border-t border-grey-100">
+                    <td className="px-4 py-2 font-medium text-ink">{t.client?.name || "—"}</td>
+                    <td className="px-4 py-2 text-grey-600">
+                      {t.done} / {t.timesPerMonth}
+                    </td>
+                    <td className="px-4 py-2">
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded border ${
+                          t.completed
+                            ? "bg-green-50 text-green-700 border-green-200"
+                            : "bg-yellow-50 text-yellow-700 border-yellow-200"
+                        }`}
+                      >
+                        {t.completed ? "Objectif atteint" : "En cours"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Clients à relancer */}
+        <div className="bg-white border border-grey-200 rounded-lg overflow-hidden">
+          <h2 className="text-sm font-semibold text-ink px-4 pt-4 pb-2">Clients à relancer</h2>
+          {toFollowUp.length === 0 && (
+            <p className="text-sm text-grey-600 px-4 pb-4">Aucun client à relancer pour le moment.</p>
+          )}
+          {toFollowUp.length > 0 && (
+            <table className="w-full text-sm text-left">
+              <thead className="bg-[#F0F3FF] text-grey-600">
+                <tr>
+                  <th className="px-4 py-2">Nom</th>
+                  <th className="px-4 py-2">Contact</th>
+                  <th className="px-4 py-2">Dernière interaction</th>
+                </tr>
+              </thead>
+              <tbody>
+                {toFollowUp.map((c) => (
+                  <tr key={c.id} className="border-t border-grey-100">
+                    <td className="px-4 py-2 font-medium text-ink">{c.name}</td>
+                    <td className="px-4 py-2 text-grey-600">{c.phone || "—"}</td>
+                    <td className="px-4 py-2 text-grey-600">{formatDate(c.lastInteractionDate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </Layout>
   );
