@@ -93,13 +93,13 @@ model OrderItem {
 }
 
 model Objective {
-  id              Int    @id @default(autoincrement())
-  commercialId    Int
-  commercial      User   @relation(fields: [commercialId], references: [id])
-  period          String   // "2026-09" — pour le CA mensuel
-  targetRevenue   Float  @default(0)   // 350 000 DA
-  targetVisitsPerDay  Int @default(0)  // 15
-  minOrdersPerDay     Int @default(0)  // 4 (minimum, pas cible)
+  id                 Int    @id @default(autoincrement())
+  commercialId       Int?
+  commercial         User?  @relation(fields: [commercialId], references: [id])
+  period             String   // "2026-09" — for monthly revenue
+  targetRevenue      Float  @default(0)   // 350 000 DA
+  targetVisitsPerDay Int    @default(0)   // 15
+  minOrdersPerDay    Int    @default(0)   // 4 (minimum, not a target)
 }
 
 model Task {

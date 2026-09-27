@@ -8,6 +8,7 @@ import ClientDetail from "./pages/ClientDetail";
 import AdminDashboard from "./pages/AdminDashboard";
 import Visits from "./pages/Visits";
 import Orders from "./pages/Orders";
+import CommercialObjectives from "./pages/CommercialObjectives";
 import Commerciaux from "./pages/Commerciaux";
 import AdminClients from "./pages/AdminClients";
 import CommercialDetail from "./pages/CommercialDetails";
@@ -52,6 +53,10 @@ export default function App() {
 
           <Route path="/orders" element={
             <ProtectedRoute roles={["COMMERCIAL"]}><Orders /></ProtectedRoute>
+          } />
+
+          <Route path="/objectives" element={
+            <ProtectedRoute roles={["COMMERCIAL"]}><CommercialObjectives /></ProtectedRoute>
           } />
 
           <Route path="/admin/reps" element={

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
@@ -7,13 +6,14 @@ import VisitFormModal from "../components/VisitFormModal";
 import OrderFormModal from "../components/OrderFormModal";
 import api from "../lib/api";
 import OrderDetailModal from "../components/OrderDetailModal";
+import { downloadCsv } from "../lib/ExportCsv";
+
 const statusLabels = {
   PROSPECT: "Prospect",
   ACTIVE: "Actif",
   INACTIVE: "Inactif",
   TO_FOLLOW_UP: "À relancer",
 };
-
 
 const statusStyles = {
   PROSPECT: "bg-[#F7F02C] text-black border-yellow-200",
@@ -27,8 +27,6 @@ const orderStatusLabels = {
   DELIVERED: "Livrée",
   CANCELLED: "Annulée",
 };
-
-
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -47,6 +45,11 @@ export default function ClientDetail() {
   const [editingVisit, setEditingVisit] = useState(null);
   const [editingOrder, setEditingOrder] = useState(null);
   const [viewingOrder, setViewingOrder] = useState(null);
+
+  // Filtre de période — appliqué côté front, puisque GET /clients/:id renvoie déjà
+  // tout l'historique de ce client en une seule fois (volume limité à un seul client).
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
 
   useEffect(() => {
     loadClient();
@@ -78,6 +81,47 @@ export default function ClientDetail() {
     );
   }
 
+  function inRange(dateStr) {
+    if (!from && !to) return true;
+    const d = new Date(dateStr);
+    if (from && d < new Date(from)) return false;
+    if (to && d > new Date(`${to}T23:59:59`)) return false;
+    return true;
+  }
+
+  const filteredVisits = (client.visits || []).filter((v) => inRange(v.date));
+  const filteredOrders = (client.orders || []).filter((o) => inRange(o.date));
+
+  function exportClientHistory() {
+    const combined = [
+      ...filteredVisits.map((v) => ({ ...v, entryType: "visit" })),
+      ...filteredOrders.map((o) => ({ ...o, entryType: "order" })),
+    ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const headers = ["Date", "Type", "Détails", "Commande / Statut", "Montant (DA)"];
+    const rows = combined.map((entry) =>
+      entry.entryType === "visit"
+        ? [
+            formatDate(entry.date),
+            "Visite",
+            entry.result + (entry.comment ? ` — ${entry.comment}` : ""),
+            entry.orderPlaced ? "Commande signée" : "Pas de commande",
+            "",
+          ]
+        : [
+            formatDate(entry.date),
+            "Commande",
+            `${entry.items?.length || 0} produit(s)`,
+            orderStatusLabels[entry.status] || entry.status,
+            entry.total.toFixed(2),
+          ]
+    );
+
+    const namePart = client.name.replace(/\s+/g, "_");
+    const rangePart = `${from || "debut"}_a_${to || "fin"}`;
+    downloadCsv(`historique_${namePart}_${rangePart}.csv`, headers, rows);
+  }
+
   return (
     <Layout title={client.name}>
       <button onClick={() => navigate("/clients")} className="text-sm text-grey-600 hover:text-ink mb-3">
@@ -105,18 +149,57 @@ export default function ClientDetail() {
         </div>
       </div>
 
+      <div className="flex items-end gap-3 mb-4">
+        <div>
+          <label className="block text-xs font-medium text-grey-600 mb-1">Du</label>
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            className="h-9 px-3 border border-grey-200 rounded text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-grey-600 mb-1">Au</label>
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            className="h-9 px-3 border border-grey-200 rounded text-sm"
+          />
+        </div>
+        {(from || to) && (
+          <button
+            onClick={() => {
+              setFrom("");
+              setTo("");
+            }}
+            className="h-9 px-3 border border-grey-200 text-sm rounded hover:bg-grey-50"
+          >
+            Réinitialiser
+          </button>
+        )}
+        <button
+          onClick={exportClientHistory}
+          disabled={filteredVisits.length === 0 && filteredOrders.length === 0}
+          className="h-9 px-4 border border-grey-200 text-sm rounded hover:bg-grey-50 disabled:opacity-40 ml-auto"
+        >
+          ⤓ Exporter (CSV)
+        </button>
+      </div>
+
       <div className="flex gap-1 mb-4">
         <button
           onClick={() => setTab("visits")}
           className={`px-4 py-2 text-sm rounded-t ${tab === "visits" ? "bg-white border border-grey-200 border-b-white font-medium" : "text-grey-600"}`}
         >
-          Visites {client.visits?.length ? `(${client.visits.length})` : ""}
+          Visites {filteredVisits.length ? `(${filteredVisits.length})` : ""}
         </button>
         <button
           onClick={() => setTab("orders")}
           className={`px-4 py-2 text-sm rounded-t ${tab === "orders" ? "bg-white border border-grey-200 border-b-white font-medium" : "text-grey-600"}`}
         >
-          Commandes {client.orders?.length ? `(${client.orders.length})` : ""}
+          Commandes {filteredOrders.length ? `(${filteredOrders.length})` : ""}
         </button>
       </div>
 
@@ -133,11 +216,13 @@ export default function ClientDetail() {
               </button>
             </div>
 
-            {(!client.visits || client.visits.length === 0) && (
-              <p className="p-4 text-sm text-grey-600">Aucune visite enregistrée.</p>
+            {filteredVisits.length === 0 && (
+              <p className="p-4 text-sm text-grey-600">
+                {client.visits?.length ? "Aucune visite sur cette période." : "Aucune visite enregistrée."}
+              </p>
             )}
 
-            {client.visits?.length > 0 && (
+            {filteredVisits.length > 0 && (
               <table className="w-full text-sm text-left">
                 <thead className="bg-[#F9F9FF] text-grey-600">
                   <tr>
@@ -150,7 +235,7 @@ export default function ClientDetail() {
                   </tr>
                 </thead>
                 <tbody>
-                  {client.visits.map((v) => (
+                  {filteredVisits.map((v) => (
                     <tr key={v.id} className="border-t border-grey-200">
                       <td className="px-4 py-2 text-grey-600 whitespace-nowrap">{formatDate(v.date)}</td>
                       <td className="px-4 py-2 text-ink">{v.result}</td>
@@ -170,19 +255,13 @@ export default function ClientDetail() {
                         {formatDate(v.nextActionDate)}
                       </td>
                       <td className="px-4 py-2 text-right whitespace-nowrap">
-                    <button
-                      onClick={() => setViewingOrder(o)}
-                      className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100 mr-1"
-                    >
-                    Voir détails
-                   </button>
-                   <button
-                      onClick={() => setEditingOrder(o)}
-                     className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100"
-                   >
-                   Modifier
-                  </button>
-                  </td>
+                        <button
+                          onClick={() => setEditingVisit(v)}
+                          className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100"
+                        >
+                          Modifier
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -203,11 +282,13 @@ export default function ClientDetail() {
               </button>
             </div>
 
-            {(!client.orders || client.orders.length === 0) && (
-              <p className="p-4 text-sm text-grey-600">Aucune commande enregistrée.</p>
+            {filteredOrders.length === 0 && (
+              <p className="p-4 text-sm text-grey-600">
+                {client.orders?.length ? "Aucune commande sur cette période." : "Aucune commande enregistrée."}
+              </p>
             )}
 
-            {client.orders?.length > 0 && (
+            {filteredOrders.length > 0 && (
               <table className="w-full text-sm text-left">
                 <thead className="bg-[#F9F9FF] text-grey-600">
                   <tr>
@@ -219,7 +300,7 @@ export default function ClientDetail() {
                   </tr>
                 </thead>
                 <tbody>
-                  {client.orders.map((o) => (
+                  {filteredOrders.map((o) => (
                     <tr key={o.id} className="border-t border-grey-200">
                       <td className="px-4 py-2 text-grey-600 whitespace-nowrap">{formatDate(o.date)}</td>
                       <td className="px-4 py-2 text-grey-600">
@@ -289,7 +370,7 @@ export default function ClientDetail() {
         />
       )}
       {viewingOrder && (
-      <OrderDetailModal order={viewingOrder} onClose={() => setViewingOrder(null)} />
+        <OrderDetailModal order={viewingOrder} onClose={() => setViewingOrder(null)} />
       )}
 
       {editingOrder && (

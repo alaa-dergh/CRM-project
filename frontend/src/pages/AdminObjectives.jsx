@@ -34,19 +34,25 @@ export default function AdminObjectives() {
   const [loading, setLoading] = useState(true);
 
   const [filterCommercial, setFilterCommercial] = useState("all");
-  const [filterPeriod, setFilterPeriod] = useState(currentPeriod());
+  const [fromPeriod, setFromPeriod] = useState(currentPeriod());
+  const [toPeriod, setToPeriod] = useState(currentPeriod());
 
   const [showModal, setShowModal] = useState(false);
   const [editingObjective, setEditingObjective] = useState(null);
 
   useEffect(() => {
-    api.get("/users").then((res) => setCommerciaux(res.data.filter((u) => u.role !== "ADMIN"))).catch(() => {});
+    // GET /users filtre déjà côté backend sur role: "COMMERCIAL" et ne renvoie pas le champ role
+    api.get("/users").then((res) => setCommerciaux(res.data)).catch(() => {});
     api.get("/orders").then((res) => setOrders(res.data)).catch(() => {});
   }, []);
 
   function loadObjectives() {
     setLoading(true);
-    const params = new URLSearchParams({ period: filterPeriod });
+    const params = new URLSearchParams();
+    // Guard against an inverted range (from > to) by swapping before sending.
+    const [from, to] = fromPeriod <= toPeriod ? [fromPeriod, toPeriod] : [toPeriod, fromPeriod];
+    params.set("from", from);
+    params.set("to", to);
     if (filterCommercial !== "all") params.set("commercialId", filterCommercial);
 
     api
@@ -59,7 +65,7 @@ export default function AdminObjectives() {
   useEffect(() => {
     loadObjectives();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterCommercial, filterPeriod]);
+  }, [filterCommercial, fromPeriod, toPeriod]);
 
   function pctBadgeClass(pct) {
     if (pct === null) return "bg-grey-100 text-grey-500 border-grey-200";
@@ -68,10 +74,28 @@ export default function AdminObjectives() {
     return "bg-red-50 text-red-700 border-red-200";
   }
 
+  // Pour l'objectif par défaut, le CA réalisé = somme de tous les commerciaux
+  // qui n'ont PAS d'objectif personnalisé pour cette période (sinon on compterait deux fois
+  // le CA d'un commercial qui a sa propre ligne).
+  const commercialIdsWithOverride = new Set(
+    objectives.filter((o) => o.commercialId != null).map((o) => o.commercialId)
+  );
+
   const rows = objectives.map((o) => {
-    const revenue = orders
-      .filter((ord) => ord.commercialId === o.commercialId && isInPeriod(ord.date, o.period))
-      .reduce((sum, ord) => sum + ord.total, 0);
+    let revenue;
+    if (o.commercialId == null) {
+      const coveredCommerciaux = commerciaux.filter((c) => !commercialIdsWithOverride.has(c.id));
+      revenue = orders
+        .filter(
+          (ord) =>
+            coveredCommerciaux.some((c) => c.id === ord.commercialId) && isInPeriod(ord.date, o.period)
+        )
+        .reduce((sum, ord) => sum + ord.total, 0);
+    } else {
+      revenue = orders
+        .filter((ord) => ord.commercialId === o.commercialId && isInPeriod(ord.date, o.period))
+        .reduce((sum, ord) => sum + ord.total, 0);
+    }
     const pct = o.targetRevenue ? Math.round((revenue / o.targetRevenue) * 100) : null;
     return { ...o, revenue, pct };
   });
@@ -80,14 +104,15 @@ export default function AdminObjectives() {
     <Layout title="Objectifs (Gestion)">
       <div className="flex items-start justify-between mb-4">
         <p className="text-sm text-grey-600">
-          Attribution et suivi des quotas commerciaux par période.
+          Attribution et suivi des quotas commerciaux par période. L'objectif "par défaut" s'applique
+          à tout commercial sans objectif personnalisé.
         </p>
         <button
           onClick={() => {
             setEditingObjective(null);
             setShowModal(true);
           }}
-          className="px-4 py-1.5 text-sm bg-black text-white rounded"
+          className="px-4 py-1.5 text-sm bg-black text-white rounded whitespace-nowrap ml-4"
         >
           + Définir un objectif
         </button>
@@ -107,18 +132,34 @@ export default function AdminObjectives() {
           ))}
         </select>
 
-        <input
-          type="month"
-          value={filterPeriod}
-          onChange={(e) => setFilterPeriod(e.target.value)}
-          className="border border-grey-200 rounded px-2 py-1.5 text-sm"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="month"
+            value={fromPeriod}
+            onChange={(e) => setFromPeriod(e.target.value)}
+            className="border border-grey-200 rounded px-2 py-1.5 text-sm"
+          />
+          <span className="text-sm text-grey-500">à</span>
+          <input
+            type="month"
+            value={toPeriod}
+            onChange={(e) => setToPeriod(e.target.value)}
+            className="border border-grey-200 rounded px-2 py-1.5 text-sm"
+          />
+        </div>
       </div>
+
+      {fromPeriod !== toPeriod && (
+        <p className="text-xs text-grey-500 -mt-3 mb-4">
+          Affichage de {formatPeriod(fromPeriod <= toPeriod ? fromPeriod : toPeriod)} à{" "}
+          {formatPeriod(fromPeriod <= toPeriod ? toPeriod : fromPeriod)}.
+        </p>
+      )}
 
       <div className="bg-white border border-grey-200 rounded-lg overflow-hidden">
         {!loading && rows.length === 0 && (
           <p className="text-sm text-grey-600 px-4 py-4">
-            Aucun objectif défini pour cette période.
+            Aucun objectif défini pour cette période (ou cette plage de périodes).
           </p>
         )}
 
@@ -136,35 +177,47 @@ export default function AdminObjectives() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((o) => (
-                <tr key={o.id} className="border-t border-grey-100">
-                  <td className="px-4 py-2 font-medium text-ink">
-                    {o.commercial?.name || commerciaux.find((c) => c.id === o.commercialId)?.name || "—"}
-                  </td>
-                  <td className="px-4 py-2 text-grey-600 capitalize">{formatPeriod(o.period)}</td>
-                  <td className="px-4 py-2 text-grey-600">{o.targetVisitsPerDay || "—"}</td>
-                  <td className="px-4 py-2 text-grey-600">{o.minOrdersPerDay || "—"}</td>
-                  <td className="px-4 py-2 text-grey-600">
-                    {formatCurrency(o.revenue)} / {formatCurrency(o.targetRevenue)}
-                  </td>
-                  <td className="px-4 py-2">
-                    <span className={`text-xs px-2 py-0.5 rounded border ${pctBadgeClass(o.pct)}`}>
-                      {o.pct !== null ? `${o.pct}%` : "—"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2">
-                    <button
-                      onClick={() => {
-                        setEditingObjective(o);
-                        setShowModal(true);
-                      }}
-                      className="text-xs text-grey-600 underline hover:text-ink"
-                    >
-                      Modifier
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {rows.map((o) => {
+                const isDefault = o.commercialId == null;
+                return (
+                  <tr key={o.id} className="border-t border-grey-100">
+                    <td className="px-4 py-2 font-medium text-ink">
+                      {isDefault ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          Tous les commerciaux
+                          <span className="text-[10px] px-1.5 py-0.5 bg-grey-800 text-white rounded uppercase tracking-wide">
+                            Défaut
+                          </span>
+                        </span>
+                      ) : (
+                        o.commercial?.name || commerciaux.find((c) => c.id === o.commercialId)?.name || "—"
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-grey-600 capitalize">{formatPeriod(o.period)}</td>
+                    <td className="px-4 py-2 text-grey-600">{o.targetVisitsPerDay || "—"}</td>
+                    <td className="px-4 py-2 text-grey-600">{o.minOrdersPerDay || "—"}</td>
+                    <td className="px-4 py-2 text-grey-600">
+                      {formatCurrency(o.revenue)} / {formatCurrency(o.targetRevenue)}
+                    </td>
+                    <td className="px-4 py-2">
+                      <span className={`text-xs px-2 py-0.5 rounded border ${pctBadgeClass(o.pct)}`}>
+                        {o.pct !== null ? `${o.pct}%` : "—"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2">
+                      <button
+                        onClick={() => {
+                          setEditingObjective(o);
+                          setShowModal(true);
+                        }}
+                        className="text-xs text-grey-600 underline hover:text-ink"
+                      >
+                        Modifier
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -175,7 +228,7 @@ export default function AdminObjectives() {
           existing={editingObjective}
           commerciaux={commerciaux}
           defaultCommercialId={filterCommercial !== "all" ? filterCommercial : ""}
-          defaultPeriod={filterPeriod}
+          defaultPeriod={toPeriod}
           onClose={() => setShowModal(false)}
           onCreated={loadObjectives}
           onUpdated={loadObjectives}

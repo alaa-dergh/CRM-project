@@ -114,10 +114,10 @@ export default function Commerciaux() {
                   <td className="px-4 py-2 text-grey-600">{u._count?.clients ?? 0}</td>
                   <td className="px-4 py-2">
                     <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      className={`px-2 py-0.5  rounded text-xs font-medium ${
                         u.isActive
-                          ? "bg-ink text-white"
-                          : "bg-grey-100 text-grey-600 border border-grey-200"
+                          ? "bg-ink text-white "
+                          : "bg-grey-100  text-grey-600 border border-grey-200"
                       }`}
                     >
                       {u.isActive ? "Actif" : "Inactif"}

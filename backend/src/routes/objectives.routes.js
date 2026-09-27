@@ -32,10 +32,12 @@ function endOfMonth() {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
-// GET /api/objectives?commercialId=&period=
+// GET /api/objectives?commercialId=&period=  (exact month, unchanged — used by the commercial's own dashboard)
+// GET /api/objectives?commercialId=&from=&to=  (month range, inclusive — used by the admin objectives page)
+// Sans commercialId (admin) : renvoie TOUT (objectifs par défaut + objectifs spécifiques) pour la période.
 router.get("/", async (req, res) => {
   try {
-    const { commercialId, period } = req.query;
+    const { commercialId, period, from, to } = req.query;
     const where = {};
 
     if (req.user.role === "ADMIN") {
@@ -43,12 +45,21 @@ router.get("/", async (req, res) => {
     } else {
       where.commercialId = req.user.id;
     }
-    if (period) where.period = period;
+
+    // "period" is a zero-padded "YYYY-MM" string, so lexicographic comparison
+    // (gte/lte) is equivalent to chronological comparison — no date parsing needed.
+    if (from || to) {
+      where.period = {};
+      if (from) where.period.gte = from;
+      if (to) where.period.lte = to;
+    } else if (period) {
+      where.period = period;
+    }
 
     const objectives = await prisma.objective.findMany({
       where,
       include: { commercial: { select: { id: true, name: true } } },
-      orderBy: { period: "desc" },
+      orderBy: [{ period: "desc" }, { commercialId: "asc" }],
     });
 
     res.json(objectives);
@@ -58,18 +69,34 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST /api/objectives — admin only: définit les objectifs d'un commercial pour un mois
+// POST /api/objectives — admin only
+// commercialId omis ou null => objectif "par défaut" appliqué à tous les commerciaux qui n'ont pas d'objectif personnalisé.
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {
     const { commercialId, period, targetRevenue, targetVisitsPerDay, minOrdersPerDay } = req.body;
 
-    if (!commercialId || !period) {
-      return res.status(400).json({ error: "commercialId and period are required" });
+    if (!period) {
+      return res.status(400).json({ error: "period is required" });
+    }
+
+    const normalizedCommercialId = commercialId ? Number(commercialId) : null;
+
+    // Postgres autorise plusieurs NULL sur une contrainte unique, donc on vérifie nous-mêmes
+    // qu'il n'existe pas déjà un objectif (par défaut ou pour ce commercial) sur cette période.
+    const existing = await prisma.objective.findFirst({
+      where: { commercialId: normalizedCommercialId, period },
+    });
+    if (existing) {
+      return res.status(400).json({
+        error: normalizedCommercialId
+          ? "Un objectif existe déjà pour ce commercial sur cette période. Modifiez-le plutôt."
+          : "Un objectif par défaut existe déjà pour cette période. Modifiez-le plutôt.",
+      });
     }
 
     const objective = await prisma.objective.create({
       data: {
-        commercialId: Number(commercialId),
+        commercialId: normalizedCommercialId,
         period,
         targetRevenue: targetRevenue || 0,
         targetVisitsPerDay: targetVisitsPerDay || 0,
@@ -84,7 +111,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
-// PUT /api/objectives/:id — admin only
+// PUT /api/objectives/:id — admin only (commercialId et period ne changent pas après création)
 router.put("/:id", requireRole("ADMIN"), async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -103,17 +130,23 @@ router.put("/:id", requireRole("ADMIN"), async (req, res) => {
 });
 
 // GET /api/objectives/progress?commercialId= — calcule tout en une fois
-// Un commercial ne peut demander que sa propre progression ; un admin peut demander celle de n'importe qui.
+// Cherche d'abord un objectif personnalisé pour ce commercial ; à défaut, utilise l'objectif par défaut (commercialId = null).
 router.get("/progress", async (req, res) => {
   try {
     const targetId =
       req.user.role === "ADMIN" && req.query.commercialId
         ? Number(req.query.commercialId)
-        : req.user.id;
+        : Number(req.user.id);
 
-    const objective = await prisma.objective.findFirst({
+    let objective = await prisma.objective.findFirst({
       where: { commercialId: targetId, period: currentPeriod() },
     });
+
+    if (!objective) {
+      objective = await prisma.objective.findFirst({
+        where: { commercialId: null, period: currentPeriod() },
+      });
+    }
 
     const [visitsToday, ordersToday, ordersThisMonth, tasks] = await Promise.all([
       prisma.visit.count({
@@ -155,9 +188,10 @@ router.get("/progress", async (req, res) => {
 
     res.json({
       objective: objective || null,
-      contactsToday: { actual: visitsToday, target: objective?.targetVisitsPerDay || null },
-      ordersToday: { actual: ordersToday, minimum: objective?.minOrdersPerDay || null },
-      revenueThisMonth: { actual: revenueThisMonth, target: objective?.targetRevenue || null },
+      isDefaultObjective: Boolean(objective && objective.commercialId === null),
+      contactsToday: { actual: visitsToday, target: objective?.targetVisitsPerDay ?? null },
+      ordersToday: { actual: ordersToday, minimum: objective?.minOrdersPerDay ?? null },
+      revenueThisMonth: { actual: revenueThisMonth, target: objective?.targetRevenue ?? null },
       tasks: tasksWithProgress,
     });
   } catch (err) {

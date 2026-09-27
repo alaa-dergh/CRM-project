@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import OrderDetailModal from "../components/OrderDetailModal";
 import api from "../lib/api";
+import { downloadCsv } from "../lib/ExportCsv";
 
 const orderStatusLabels = {
   PENDING: "En attente",
@@ -42,6 +43,33 @@ export default function CommercialDetail() {
       .then((res) => setHistory(Array.isArray(res.data) ? res.data : []))
       .catch(() => setError("Impossible de charger l'historique."))
       .finally(() => setLoading(false));
+  }
+
+  function exportHistory() {
+    const headers = ["Date", "Type", "Client", "Détails", "Commande / Statut", "Montant (DA)"];
+    const rows = history.map((entry) =>
+      entry.entryType === "visit"
+        ? [
+            formatDate(entry.date),
+            "Visite",
+            entry.client?.name || "",
+            entry.result + (entry.comment ? ` — ${entry.comment}` : ""),
+            entry.orderPlaced ? "Commande signée" : "Pas de commande",
+            "",
+          ]
+        : [
+            formatDate(entry.date),
+            "Commande",
+            entry.client?.name || "",
+            `${entry.items?.length || 0} produit(s)`,
+            orderStatusLabels[entry.status] || entry.status,
+            entry.total.toFixed(2),
+          ]
+    );
+
+    const namePart = (commercial?.name || `commercial_${id}`).replace(/\s+/g, "_");
+    const rangePart = `${from || "debut"}_a_${to || "fin"}`;
+    downloadCsv(`historique_${namePart}_${rangePart}.csv`, headers, rows);
   }
 
   const visitsCount = history.filter((h) => h.entryType === "visit").length;
@@ -129,6 +157,13 @@ export default function CommercialDetail() {
             Réinitialiser
           </button>
         )}
+        <button
+          onClick={exportHistory}
+          disabled={history.length === 0}
+          className="h-9 px-4 border border-grey-200 text-sm rounded hover:bg-grey-50 disabled:opacity-40 ml-auto"
+        >
+          ⤓ Exporter (CSV)
+        </button>
       </div>
 
       <div className="bg-white border border-grey-200 rounded-lg overflow-hidden">

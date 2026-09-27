@@ -22,7 +22,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      api.get("/users").then((res) => setCommerciaux(res.data.filter((u) => u.role !== "ADMIN"))).catch(() => {}),
+      // GET /users filtre déjà côté backend sur role: "COMMERCIAL" et ne renvoie pas le champ role
+      api.get("/users").then((res) => setCommerciaux(res.data)).catch(() => {}),
       api.get("/clients").then((res) => setClients(res.data)).catch(() => {}),
       api.get("/visits").then((res) => setVisits(res.data)).catch(() => {}),
       api.get("/orders").then((res) => setOrders(res.data)).catch(() => {}),
@@ -43,13 +44,22 @@ export default function AdminDashboard() {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   };
 
+  // Objectif effectif d'un commercial : personnalisé s'il existe, sinon l'objectif par défaut (commercialId null)
+  const defaultObjective = objectives.find((o) => o.commercialId == null) || null;
+  function effectiveObjectiveFor(commercialId) {
+    return objectives.find((o) => o.commercialId === commercialId) || defaultObjective;
+  }
+
   // --- KPI globaux ---
   const totalClients = clients.length;
   const newClientsThisMonth = clients.filter((c) => isThisMonth(c.createdAt)).length;
   const totalProspects = clients.filter((c) => c.status === "PROSPECT").length;
 
   const visitsToday = visits.filter((v) => isToday(v.date)).length;
-  const visitsTargetToday = objectives.reduce((sum, o) => sum + (o.targetVisitsPerDay || 0), 0);
+  const visitsTargetToday = commerciaux.reduce(
+    (sum, c) => sum + (effectiveObjectiveFor(c.id)?.targetVisitsPerDay || 0),
+    0
+  );
 
   const visitsThisMonth = visits.filter((v) => isThisMonth(v.date));
   const ordersThisMonth = orders.filter((o) => isThisMonth(o.date));
@@ -58,7 +68,10 @@ export default function AdminDashboard() {
     : 0;
 
   const revenueThisMonth = ordersThisMonth.reduce((sum, o) => sum + o.total, 0);
-  const revenueTarget = objectives.reduce((sum, o) => sum + (o.targetRevenue || 0), 0);
+  const revenueTarget = commerciaux.reduce(
+    (sum, c) => sum + (effectiveObjectiveFor(c.id)?.targetRevenue || 0),
+    0
+  );
   const revenuePct = revenueTarget ? Math.round((revenueThisMonth / revenueTarget) * 100) : null;
 
   // --- Performance par commercial (mois en cours) ---
@@ -67,7 +80,7 @@ export default function AdminDashboard() {
     const cNewClients = clients.filter((cl) => cl.commercialId === c.id && isThisMonth(cl.createdAt)).length;
     const cOrders = ordersThisMonth.filter((o) => o.commercialId === c.id);
     const cRevenue = cOrders.reduce((sum, o) => sum + o.total, 0);
-    const objective = objectives.find((o) => o.commercialId === c.id);
+    const objective = effectiveObjectiveFor(c.id);
     const target = objective?.targetRevenue || null;
     const pct = target ? Math.round((cRevenue / target) * 100) : null;
 
@@ -79,6 +92,7 @@ export default function AdminDashboard() {
       orders: cOrders.length,
       revenue: cRevenue,
       target,
+      isDefaultTarget: objective ? objective.commercialId == null : false,
       pct,
     };
   }).sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
@@ -108,6 +122,13 @@ export default function AdminDashboard() {
         Supervision globale des équipes commerciales et du chiffre d'affaires consolidé.
       </p>
 
+      {!loading && !defaultObjective && objectives.length === 0 && (
+        <div className="mb-4 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+          Aucun objectif par défaut n'est défini pour la période en cours. Les commerciaux sans
+          objectif personnalisé n'auront aucune cible affichée.
+        </div>
+      )}
+
       <div className="grid grid-cols-5 gap-4 mb-6">
         {/* Total clients */}
         <div className="bg-white border border-grey-200 rounded-lg p-4">
@@ -116,7 +137,7 @@ export default function AdminDashboard() {
               Total clients
             </span>
             {newClientsThisMonth > 0 && (
-              <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded">
+              <span className="text-xs px-2 py-0.5 bg-[#348133] text-white border border-green-200 rounded">
                 +{newClientsThisMonth}
               </span>
             )}
@@ -153,7 +174,7 @@ export default function AdminDashboard() {
             <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
               Commandes ce mois
             </span>
-            <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded">
+            <span className="text-xs mx-1 px-2 py-0.5 bg-[#348133] text-white border border-green-200 rounded">
               {conversionRate}% conv.
             </span>
           </div>
@@ -180,7 +201,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Performance par commercial */}
-      <div className="bg-white border border-grey-200 rounded-lg overflow-hidden">
+      <div className="bg-white border border-grey-200 rounded overflow-hidden">
         <div className="px-4 pt-4 pb-2">
           <h2 className="text-sm font-semibold text-ink">Performance par commercial</h2>
           <p className="text-xs text-grey-500">
@@ -214,7 +235,18 @@ export default function AdminDashboard() {
                   <td className="px-4 py-2 text-grey-600">{p.orders}</td>
                   <td className="px-4 py-2 text-grey-600">{formatCurrency(p.revenue)}</td>
                   <td className="px-4 py-2 text-grey-600">
-                    {p.target ? formatCurrency(p.target) : "—"}
+                    {p.target ? (
+                      <span className="inline-flex items-center gap-1">
+                        {formatCurrency(p.target)}
+                        {p.isDefaultTarget && (
+                          <span className="text-[10px] px-1 py-0.5 bg-grey-100 text-grey-500 rounded uppercase">
+                            défaut
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="px-4 py-2">
                     <span className={`text-xs px-2 py-0.5 rounded border ${pctBadgeClass(p.pct)}`}>
@@ -225,7 +257,7 @@ export default function AdminDashboard() {
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-grey-200 bg-grey-50 font-medium">
+              <tr className="border-t border-grey-200 bg-grey-200 font-medium">
                 <td className="px-4 py-2 text-ink">Total consolidation</td>
                 <td className="px-4 py-2 text-ink">{totals.visits}</td>
                 <td className="px-4 py-2 text-ink">{totals.newClients}</td>

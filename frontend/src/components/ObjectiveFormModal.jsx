@@ -3,7 +3,11 @@ import api from "../lib/api";
 
 export default function ObjectiveFormModal({ existing, commerciaux, defaultCommercialId, defaultPeriod, onClose, onCreated, onUpdated }) {
   const isEdit = Boolean(existing);
+  const existingIsDefault = isEdit && existing.commercialId == null;
 
+  // "default" = objectif appliqué à tous les commerciaux qui n'ont pas d'objectif personnalisé
+  // "specific" = objectif pour un commercial précis, qui prend le dessus sur le défaut
+  const [scope, setScope] = useState(existingIsDefault ? "default" : "specific");
   const [commercialId, setCommercialId] = useState(existing?.commercialId || defaultCommercialId || "");
   const [period, setPeriod] = useState(existing?.period || defaultPeriod || "");
   const [targetVisitsPerDay, setTargetVisitsPerDay] = useState(existing?.targetVisitsPerDay ?? "");
@@ -16,8 +20,12 @@ export default function ObjectiveFormModal({ existing, commerciaux, defaultComme
     e.preventDefault();
     setError("");
 
-    if (!isEdit && (!commercialId || !period)) {
-      setError("Le commercial et la période sont obligatoires.");
+    if (!isEdit && !period) {
+      setError("La période est obligatoire.");
+      return;
+    }
+    if (!isEdit && scope === "specific" && !commercialId) {
+      setError("Sélectionnez un commercial, ou choisissez \"Tous les commerciaux\".");
       return;
     }
 
@@ -35,7 +43,7 @@ export default function ObjectiveFormModal({ existing, commerciaux, defaultComme
       } else {
         const res = await api.post("/objectives", {
           ...payload,
-          commercialId: Number(commercialId),
+          commercialId: scope === "specific" ? Number(commercialId) : null,
           period,
         });
         onCreated?.(res.data);
@@ -59,23 +67,59 @@ export default function ObjectiveFormModal({ existing, commerciaux, defaultComme
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-grey-600 mb-1">Commercial</label>
-              <select
-                value={commercialId}
-                onChange={(e) => setCommercialId(e.target.value)}
-                disabled={isEdit}
-                className="w-full border border-grey-200 rounded px-2 py-1.5 text-sm disabled:bg-grey-50 disabled:text-grey-500"
-              >
-                <option value="">Sélectionner…</option>
-                {commerciaux.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+          {/* Portée : par défaut (tous) ou un commercial précis */}
+          <div>
+            <label className="block text-xs font-medium text-grey-600 mb-1">
+              S'applique à
+            </label>
+            <div className="flex gap-4 text-sm">
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name="scope"
+                  checked={scope === "default"}
+                  disabled={isEdit}
+                  onChange={() => setScope("default")}
+                />
+                Tous les commerciaux (par défaut)
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name="scope"
+                  checked={scope === "specific"}
+                  disabled={isEdit}
+                  onChange={() => setScope("specific")}
+                />
+                Un commercial spécifique
+              </label>
             </div>
+            {scope === "default" && (
+              <p className="text-xs text-grey-500 mt-1">
+                S'applique à tout commercial qui n'a pas d'objectif personnalisé pour cette période.
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {scope === "specific" && (
+              <div>
+                <label className="block text-xs font-medium text-grey-600 mb-1">Commercial</label>
+                <select
+                  value={commercialId}
+                  onChange={(e) => setCommercialId(e.target.value)}
+                  disabled={isEdit}
+                  className="w-full border border-grey-200 rounded px-2 py-1.5 text-sm disabled:bg-grey-50 disabled:text-grey-500"
+                >
+                  <option value="">Sélectionner…</option>
+                  {commerciaux.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-medium text-grey-600 mb-1">Période</label>
