@@ -97,8 +97,8 @@ export default function AdminClients() {
 
   return (
     <Layout title="Clients (Global)">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs px-2 py-0.5 bg-grey-100 border border-grey-200 rounded font-medium text-grey-600">
             ADMIN
           </span>
@@ -106,7 +106,7 @@ export default function AdminClients() {
             {clients.length} clients enregistrés au catalogue national
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={exportSelection}
             disabled={selected.length === 0}
@@ -123,7 +123,7 @@ export default function AdminClients() {
         </div>
       </div>
 
-      <div className="flex gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <input
           type="text"
           placeholder="Rechercher par raison sociale, ville..."
@@ -154,7 +154,7 @@ export default function AdminClients() {
         <button
           onClick={resetFilters}
           title="Réinitialiser les filtres"
-          className="h-9 px-3 border border-grey-200 rounded hover:bg-grey-50 text-grey-600 text-sm"
+          className="h-9 px-3 border border-grey-200 rounded hover:bg-grey-50 text-grey-600 text-sm self-start sm:self-auto"
         >
           ✕
         </button>
@@ -168,72 +168,74 @@ export default function AdminClients() {
         )}
 
         {!loading && filtered.length > 0 && (
-          <table className="w-full text-sm text-left">
-            <thead className="bg-[#E7EEFE] text-grey-600">
-              <tr>
-                <th className="px-4 py-2 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selected.length === filtered.length}
-                    onChange={toggleSelectAll}
-                  />
-                </th>
-                <th className="px-4 py-2">Nom</th>
-                <th className="px-4 py-2">Statut</th>
-                <th className="px-4 py-2">Commercial responsable</th>
-                <th className="px-4 py-2">Localisation</th>
-                <th className="px-4 py-2">Dernière visite</th>
-                <th className="px-4 py-2 text-right">CA global</th>
-                <th className="px-4 py-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((client) => (
-                <tr
-                  key={client.id}
-                  onClick={() => navigate(`/clients/${client.id}`)}
-                  className="border-t border-grey-200 hover:bg-grey-50 cursor-pointer"
-                >
-                  <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left min-w-[1000px]">
+              <thead className="bg-[#E7EEFE] text-grey-600">
+                <tr>
+                  <th className="px-4 py-2 w-10">
                     <input
                       type="checkbox"
-                      checked={selected.includes(client.id)}
-                      onChange={() => toggleSelect(client.id)}
+                      checked={selected.length === filtered.length}
+                      onChange={toggleSelectAll}
                     />
-                  </td>
-                  <td className="px-4 py-2 font-medium text-ink">{client.name}</td>
-                  <td className="px-4 py-2">
-                    <span
-                      className={`inline-flex w-20 justify-center items-center px-2 py-1 rounded text-xs font-medium border ${
-                        statusStyles[client.status] || "bg-grey-100 text-grey-600 border-grey-200"
-                      }`}
-                    >
-                      {statusLabels[client.status] || client.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-grey-600">{client.commercial?.name || "—"}</td>
-                  <td className="px-4 py-2 text-grey-600">{client.location || "—"}</td>
-                  <td className="px-4 py-2 text-grey-600 whitespace-nowrap">
-                    {formatDate(client.lastVisitDate)}
-                  </td>
-                  <td className="px-4 py-2 text-right font-medium text-ink whitespace-nowrap">
-                    {formatCurrency(client.totalRevenue)}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/clients/${client.id}`);
-                      }}
-                      className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100"
-                    >
-                      Voir fiche
-                    </button>
-                  </td>
+                  </th>
+                  <th className="px-4 py-2">Nom</th>
+                  <th className="px-4 py-2">Statut</th>
+                  <th className="px-4 py-2">Commercial responsable</th>
+                  <th className="px-4 py-2">Localisation</th>
+                  <th className="px-4 py-2">Dernière visite</th>
+                  <th className="px-4 py-2 text-right">CA global</th>
+                  <th className="px-4 py-2 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((client) => (
+                  <tr
+                    key={client.id}
+                    onClick={() => navigate(`/clients/${client.id}`)}
+                    className="border-t border-grey-200 hover:bg-grey-50 cursor-pointer"
+                  >
+                    <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(client.id)}
+                        onChange={() => toggleSelect(client.id)}
+                      />
+                    </td>
+                    <td className="px-4 py-2 font-medium text-ink">{client.name}</td>
+                    <td className="px-4 py-2">
+                      <span
+                        className={`inline-flex w-20 justify-center items-center px-2 py-1 rounded text-xs font-medium border ${
+                          statusStyles[client.status] || "bg-grey-100 text-grey-600 border-grey-200"
+                        }`}
+                      >
+                        {statusLabels[client.status] || client.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-grey-600">{client.commercial?.name || "—"}</td>
+                    <td className="px-4 py-2 text-grey-600">{client.location || "—"}</td>
+                    <td className="px-4 py-2 text-grey-600 whitespace-nowrap">
+                      {formatDate(client.lastVisitDate)}
+                    </td>
+                    <td className="px-4 py-2 text-right font-medium text-ink whitespace-nowrap">
+                      {formatCurrency(client.totalRevenue)}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/clients/${client.id}`);
+                        }}
+                        className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100 whitespace-nowrap"
+                      >
+                        Voir fiche
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         <div className="px-4 py-2 border-t border-grey-100 bg-grey-50 text-xs text-grey-500">

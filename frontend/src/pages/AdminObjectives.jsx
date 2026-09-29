@@ -19,7 +19,6 @@ function formatPeriod(period) {
   return date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 }
 
-// Un order.date tombe-t-il dans la période "YYYY-MM" ?
 function isInPeriod(dateStr, period) {
   if (!period) return false;
   const [year, month] = period.split("-").map(Number);
@@ -41,7 +40,6 @@ export default function AdminObjectives() {
   const [editingObjective, setEditingObjective] = useState(null);
 
   useEffect(() => {
-    // GET /users filtre déjà côté backend sur role: "COMMERCIAL" et ne renvoie pas le champ role
     api.get("/users").then((res) => setCommerciaux(res.data)).catch(() => {});
     api.get("/orders").then((res) => setOrders(res.data)).catch(() => {});
   }, []);
@@ -49,7 +47,6 @@ export default function AdminObjectives() {
   function loadObjectives() {
     setLoading(true);
     const params = new URLSearchParams();
-    // Guard against an inverted range (from > to) by swapping before sending.
     const [from, to] = fromPeriod <= toPeriod ? [fromPeriod, toPeriod] : [toPeriod, fromPeriod];
     params.set("from", from);
     params.set("to", to);
@@ -74,9 +71,6 @@ export default function AdminObjectives() {
     return "bg-red-50 text-red-700 border-red-200";
   }
 
-  // Pour l'objectif par défaut, le CA réalisé = somme de tous les commerciaux
-  // qui n'ont PAS d'objectif personnalisé pour cette période (sinon on compterait deux fois
-  // le CA d'un commercial qui a sa propre ligne).
   const commercialIdsWithOverride = new Set(
     objectives.filter((o) => o.commercialId != null).map((o) => o.commercialId)
   );
@@ -102,8 +96,8 @@ export default function AdminObjectives() {
 
   return (
     <Layout title="Objectifs (Gestion)">
-      <div className="flex items-start justify-between mb-4">
-        <p className="text-sm text-grey-600">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+        <p className="text-sm text-grey-600 sm:max-w-2xl">
           Attribution et suivi des quotas commerciaux par période. L'objectif "par défaut" s'applique
           à tout commercial sans objectif personnalisé.
         </p>
@@ -112,13 +106,13 @@ export default function AdminObjectives() {
             setEditingObjective(null);
             setShowModal(true);
           }}
-          className="px-4 py-1.5 text-sm bg-black text-white rounded whitespace-nowrap ml-4"
+          className="px-4 py-1.5 text-sm bg-black text-white rounded whitespace-nowrap self-start"
         >
           + Définir un objectif
         </button>
       </div>
 
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
         <select
           value={filterCommercial}
           onChange={(e) => setFilterCommercial(e.target.value)}
@@ -132,7 +126,7 @@ export default function AdminObjectives() {
           ))}
         </select>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <input
             type="month"
             value={fromPeriod}
@@ -164,62 +158,64 @@ export default function AdminObjectives() {
         )}
 
         {rows.length > 0 && (
-          <table className="w-full text-sm text-left">
-            <thead className="bg-[#F0F3FF] text-grey-600">
-              <tr>
-                <th className="px-4 py-2">Commercial</th>
-                <th className="px-4 py-2">Période</th>
-                <th className="px-4 py-2">Cible visites/jour</th>
-                <th className="px-4 py-2">Min. commandes/jour</th>
-                <th className="px-4 py-2">CA réalisé / cible</th>
-                <th className="px-4 py-2">Taux (%)</th>
-                <th className="px-4 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((o) => {
-                const isDefault = o.commercialId == null;
-                return (
-                  <tr key={o.id} className="border-t border-grey-100">
-                    <td className="px-4 py-2 font-medium text-ink">
-                      {isDefault ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          Tous les commerciaux
-                          <span className="text-[10px] px-1.5 py-0.5 bg-grey-800 text-white rounded uppercase tracking-wide">
-                            Défaut
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left min-w-[900px]">
+              <thead className="bg-[#F0F3FF] text-grey-600">
+                <tr>
+                  <th className="px-4 py-2">Commercial</th>
+                  <th className="px-4 py-2">Période</th>
+                  <th className="px-4 py-2">Cible visites/jour</th>
+                  <th className="px-4 py-2">Min. commandes/jour</th>
+                  <th className="px-4 py-2">CA réalisé / cible</th>
+                  <th className="px-4 py-2">Taux (%)</th>
+                  <th className="px-4 py-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((o) => {
+                  const isDefault = o.commercialId == null;
+                  return (
+                    <tr key={o.id} className="border-t border-grey-100">
+                      <td className="px-4 py-2 font-medium text-ink">
+                        {isDefault ? (
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                            Tous les commerciaux
+                            <span className="text-[10px] px-1.5 py-0.5 bg-grey-800 text-white rounded uppercase tracking-wide">
+                              Défaut
+                            </span>
                           </span>
+                        ) : (
+                          o.commercial?.name || commerciaux.find((c) => c.id === o.commercialId)?.name || "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-grey-600 capitalize whitespace-nowrap">{formatPeriod(o.period)}</td>
+                      <td className="px-4 py-2 text-grey-600">{o.targetVisitsPerDay || "—"}</td>
+                      <td className="px-4 py-2 text-grey-600">{o.minOrdersPerDay || "—"}</td>
+                      <td className="px-4 py-2 text-grey-600 whitespace-nowrap">
+                        {formatCurrency(o.revenue)} / {formatCurrency(o.targetRevenue)}
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className={`text-xs px-2 py-0.5 rounded border whitespace-nowrap ${pctBadgeClass(o.pct)}`}>
+                          {o.pct !== null ? `${o.pct}%` : "—"}
                         </span>
-                      ) : (
-                        o.commercial?.name || commerciaux.find((c) => c.id === o.commercialId)?.name || "—"
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-grey-600 capitalize">{formatPeriod(o.period)}</td>
-                    <td className="px-4 py-2 text-grey-600">{o.targetVisitsPerDay || "—"}</td>
-                    <td className="px-4 py-2 text-grey-600">{o.minOrdersPerDay || "—"}</td>
-                    <td className="px-4 py-2 text-grey-600">
-                      {formatCurrency(o.revenue)} / {formatCurrency(o.targetRevenue)}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span className={`text-xs px-2 py-0.5 rounded border ${pctBadgeClass(o.pct)}`}>
-                        {o.pct !== null ? `${o.pct}%` : "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2">
-                      <button
-                        onClick={() => {
-                          setEditingObjective(o);
-                          setShowModal(true);
-                        }}
-                        className="text-xs text-grey-600 underline hover:text-ink"
-                      >
-                        Modifier
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td className="px-4 py-2">
+                        <button
+                          onClick={() => {
+                            setEditingObjective(o);
+                            setShowModal(true);
+                          }}
+                          className="text-xs text-grey-600 underline hover:text-ink whitespace-nowrap"
+                        >
+                          Modifier
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

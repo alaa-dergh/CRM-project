@@ -21,21 +21,21 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-grey-50">
+    <div className="min-h-screen flex items-center justify-center bg-grey-50 p-4">
       <form
         onSubmit={handleSubmit}
-        className="bg-white border border-grey-200 rounded-lg p-8  w-[400px] h-[440px] "
+        className="bg-white border border-grey-200 rounded-lg p-6 sm:p-8 w-full max-w-[400px]"
       >
-        <h1 className="text-2xl font-bold  mb-2 text-center">Login</h1>
-        <p className="text-[11px] text-center text-gray-500 mb-6">Veuillez vous identifier pour accéder à votre espace commercial.</p>
+        <h1 className="text-2xl font-bold mb-2 text-center">Login</h1>
+        <p className="text-[11px] text-center text-gray-500 mb-6">
+          Veuillez vous identifier pour accéder à votre espace commercial.
+        </p>
 
         {error && (
           <p className="text-sm text-charcoal bg-gray-100 border border-grey-200 rounded px-3 py-2 mb-4">
             {error}
           </p>
         )}
-
-        
 
         <label className="block text-sm mb-1 text-grey-600 mt-1">Email</label>
         <input
@@ -54,8 +54,6 @@ export default function Login() {
           className="w-full border border-grey-200 rounded px-3 py-2 mb-6 focus:outline-none focus:border-ink"
           required
         />
-        <br></br>
-        <br></br>
 
         <button
           type="submit"

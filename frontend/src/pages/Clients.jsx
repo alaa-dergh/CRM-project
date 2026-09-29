@@ -68,17 +68,17 @@ export default function Clients() {
 
   return (
     <Layout title="Mes clients">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <p className="text-sm text-grey-600">{clients.length} clients au total</p>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-ink text-white text-sm px-4 py-2 rounded hover:bg-charcoal"
+          className="bg-ink text-white text-sm px-4 py-2 rounded hover:bg-charcoal self-start sm:self-auto"
         >
           + Nouveau client
         </button>
       </div>
 
-      <div className="flex gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <input
           type="text"
           placeholder="Rechercher un client..."
@@ -108,7 +108,7 @@ export default function Clients() {
         </select>
       </div>
 
-      <div className="bg-white border border-grey-200  overflow-hidden">
+      <div className="bg-white border border-grey-200 overflow-hidden">
         {error && <p className="p-4 text-sm text-grey-600">{error}</p>}
 
         {loading && <p className="p-4 text-sm text-grey-600">Chargement...</p>}
@@ -118,58 +118,60 @@ export default function Clients() {
         )}
 
         {!loading && filtered.length > 0 && (
-          <table className="w-full text-sm text-left">
-            <thead className="bg-grey-50 text-grey-600">
-              <tr className="bg-[#E7EEFE]">
-                <th className="px-4 py-2">Nom</th>
-                <th className="px-4 py-2">Statut</th>
-                <th className="px-4 py-2">Localisation</th>
-                <th className="px-4 py-2">Dernière visite</th>
-                <th className="px-4 py-2">Contact</th>
-                <th className="px-4 py-2 text-right">CA cumulé</th>
-                <th className="px-4 py-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((client) => (
-                <tr
-                  key={client.id}
-                  onClick={() => navigate(`/clients/${client.id}`)}
-                  className="border-t border-grey-200 hover:bg-grey-50 cursor-pointer"
-                >
-                  <td className="px-4 py-2 font-medium text-ink">{client.name}</td>
-                  <td className="px-4 py-2">
-                    <span
-                      className={`inline-flex w-20 justify-center items-center px-2 py-1 rounded text-xs font-medium border ${
-                        statusStyles[client.status] || "bg-grey-100 text-grey-600 border-grey-200"
-                      }`}
-                    >
-                      {statusLabels[client.status] || client.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-grey-600">{client.location || "—"}</td>
-                  <td className="px-4 py-2 text-grey-600 whitespace-nowrap">
-                    {formatDate(client.lastVisitDate)}
-                  </td>
-                  <td className="px-4 py-2 text-grey-600">{client.phone || "—"}</td>
-                  <td className="px-4 py-2 text-right font-medium text-ink whitespace-nowrap">
-                    {formatCurrency(client.totalRevenue)}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/clients/${client.id}`);
-                      }}
-                      className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100"
-                    >
-                      Voir fiche
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left min-w-[900px]">
+              <thead className="text-grey-600">
+                <tr className="bg-[#E7EEFE]">
+                  <th className="px-4 py-2">Nom</th>
+                  <th className="px-4 py-2">Statut</th>
+                  <th className="px-4 py-2">Localisation</th>
+                  <th className="px-4 py-2">Dernière visite</th>
+                  <th className="px-4 py-2">Contact</th>
+                  <th className="px-4 py-2 text-right">CA cumulé</th>
+                  <th className="px-4 py-2 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((client) => (
+                  <tr
+                    key={client.id}
+                    onClick={() => navigate(`/clients/${client.id}`)}
+                    className="border-t border-grey-200 hover:bg-grey-50 cursor-pointer"
+                  >
+                    <td className="px-4 py-2 font-medium text-ink">{client.name}</td>
+                    <td className="px-4 py-2">
+                      <span
+                        className={`inline-flex w-20 justify-center items-center px-2 py-1 rounded text-xs font-medium border ${
+                          statusStyles[client.status] || "bg-grey-100 text-grey-600 border-grey-200"
+                        }`}
+                      >
+                        {statusLabels[client.status] || client.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-grey-600">{client.location || "—"}</td>
+                    <td className="px-4 py-2 text-grey-600 whitespace-nowrap">
+                      {formatDate(client.lastVisitDate)}
+                    </td>
+                    <td className="px-4 py-2 text-grey-600">{client.phone || "—"}</td>
+                    <td className="px-4 py-2 text-right font-medium text-ink whitespace-nowrap">
+                      {formatCurrency(client.totalRevenue)}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/clients/${client.id}`);
+                        }}
+                        className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100 whitespace-nowrap"
+                      >
+                        Voir fiche
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

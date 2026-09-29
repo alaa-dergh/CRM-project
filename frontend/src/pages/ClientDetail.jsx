@@ -46,8 +46,6 @@ export default function ClientDetail() {
   const [editingOrder, setEditingOrder] = useState(null);
   const [viewingOrder, setViewingOrder] = useState(null);
 
-  // Filtre de période — appliqué côté front, puisque GET /clients/:id renvoie déjà
-  // tout l'historique de ce client en une seule fois (volume limité à un seul client).
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
@@ -129,9 +127,9 @@ export default function ClientDetail() {
       </button>
 
       <div className="bg-white border border-grey-200 rounded-lg p-5 mb-4">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <h2 className="text-lg font-semibold text-ink">{client.name}</h2>
               <span className={`px-2 py-0.5 rounded text-xs font-medium border ${statusStyles[client.status] || "bg-grey-100 text-grey-600 border-grey-200"}`}>
                 {statusLabels[client.status] || client.status}
@@ -142,14 +140,14 @@ export default function ClientDetail() {
           </div>
           <button
             onClick={() => setShowEdit(true)}
-            className="text-sm px-3 py-1.5 border border-grey-200 rounded hover:bg-grey-50"
+            className="text-sm px-3 py-1.5 border border-grey-200 rounded hover:bg-grey-50 self-start"
           >
             Éditer la fiche
           </button>
         </div>
       </div>
 
-      <div className="flex items-end gap-3 mb-4">
+      <div className="flex flex-wrap items-end gap-3 mb-4">
         <div>
           <label className="block text-xs font-medium text-grey-600 mb-1">Du</label>
           <input
@@ -182,22 +180,22 @@ export default function ClientDetail() {
         <button
           onClick={exportClientHistory}
           disabled={filteredVisits.length === 0 && filteredOrders.length === 0}
-          className="h-9 px-4 border border-grey-200 text-sm rounded hover:bg-grey-50 disabled:opacity-40 ml-auto"
+          className="h-9 px-4 border border-grey-200 text-sm rounded hover:bg-grey-50 disabled:opacity-40 sm:ml-auto"
         >
           ⤓ Exporter (CSV)
         </button>
       </div>
 
-      <div className="flex gap-1 mb-4">
+      <div className="flex gap-1 mb-4 overflow-x-auto">
         <button
           onClick={() => setTab("visits")}
-          className={`px-4 py-2 text-sm rounded-t ${tab === "visits" ? "bg-white border border-grey-200 border-b-white font-medium" : "text-grey-600"}`}
+          className={`px-4 py-2 text-sm rounded-t whitespace-nowrap ${tab === "visits" ? "bg-white border border-grey-200 border-b-white font-medium" : "text-grey-600"}`}
         >
           Visites {filteredVisits.length ? `(${filteredVisits.length})` : ""}
         </button>
         <button
           onClick={() => setTab("orders")}
-          className={`px-4 py-2 text-sm rounded-t ${tab === "orders" ? "bg-white border border-grey-200 border-b-white font-medium" : "text-grey-600"}`}
+          className={`px-4 py-2 text-sm rounded-t whitespace-nowrap ${tab === "orders" ? "bg-white border border-grey-200 border-b-white font-medium" : "text-grey-600"}`}
         >
           Commandes {filteredOrders.length ? `(${filteredOrders.length})` : ""}
         </button>
@@ -206,11 +204,11 @@ export default function ClientDetail() {
       <div className="bg-white border border-grey-200 rounded-lg -mt-px overflow-hidden">
         {tab === "visits" && (
           <>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-grey-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 border-b border-grey-200">
               <p className="text-sm text-ink">Journal chronologique des visites</p>
               <button
                 onClick={() => setShowVisitModal(true)}
-                className="bg-ink text-white text-xs px-3 py-1.5 rounded hover:bg-charcoal"
+                className="bg-ink text-white text-xs px-3 py-1.5 rounded hover:bg-charcoal self-start sm:self-auto"
               >
                 + Nouvelle visite
               </button>
@@ -223,60 +221,62 @@ export default function ClientDetail() {
             )}
 
             {filteredVisits.length > 0 && (
-              <table className="w-full text-sm text-left">
-                <thead className="bg-[#F9F9FF] text-grey-600">
-                  <tr>
-                    <th className="px-4 py-2">Date</th>
-                    <th className="px-4 py-2">Résultat</th>
-                    <th className="px-4 py-2">Commentaire</th>
-                    <th className="px-4 py-2">Commande</th>
-                    <th className="px-4 py-2">Prochaine relance</th>
-                    <th className="px-4 py-2 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredVisits.map((v) => (
-                    <tr key={v.id} className="border-t border-grey-200">
-                      <td className="px-4 py-2 text-grey-600 whitespace-nowrap">{formatDate(v.date)}</td>
-                      <td className="px-4 py-2 text-ink">{v.result}</td>
-                      <td className="px-4 py-2 text-grey-600 max-w-xs truncate">{v.comment || "—"}</td>
-                      <td className="px-4 py-2">
-                        <span
-                          className={`px-2 py-0.5 rounded text-xs font-semibold border ${
-                            v.orderPlaced
-                              ? "bg-green-50 text-green-700 border-green-200"
-                              : "bg-red-50 text-red-700 border-red-200"
-                          }`}
-                        >
-                          {v.orderPlaced ? "OUI" : "NON"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-grey-600 whitespace-nowrap">
-                        {formatDate(v.nextActionDate)}
-                      </td>
-                      <td className="px-4 py-2 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => setEditingVisit(v)}
-                          className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100"
-                        >
-                          Modifier
-                        </button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left min-w-[800px]">
+                  <thead className="bg-[#F9F9FF] text-grey-600">
+                    <tr>
+                      <th className="px-4 py-2">Date</th>
+                      <th className="px-4 py-2">Résultat</th>
+                      <th className="px-4 py-2">Commentaire</th>
+                      <th className="px-4 py-2">Commande</th>
+                      <th className="px-4 py-2">Prochaine relance</th>
+                      <th className="px-4 py-2 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredVisits.map((v) => (
+                      <tr key={v.id} className="border-t border-grey-200">
+                        <td className="px-4 py-2 text-grey-600 whitespace-nowrap">{formatDate(v.date)}</td>
+                        <td className="px-4 py-2 text-ink">{v.result}</td>
+                        <td className="px-4 py-2 text-grey-600 max-w-xs truncate">{v.comment || "—"}</td>
+                        <td className="px-4 py-2">
+                          <span
+                            className={`px-2 py-0.5 rounded text-xs font-semibold border ${
+                              v.orderPlaced
+                                ? "bg-green-50 text-green-700 border-green-200"
+                                : "bg-red-50 text-red-700 border-red-200"
+                            }`}
+                          >
+                            {v.orderPlaced ? "OUI" : "NON"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-grey-600 whitespace-nowrap">
+                          {formatDate(v.nextActionDate)}
+                        </td>
+                        <td className="px-4 py-2 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => setEditingVisit(v)}
+                            className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100"
+                          >
+                            Modifier
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}
 
         {tab === "orders" && (
           <>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-grey-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 border-b border-grey-200">
               <p className="text-sm text-ink">Historique des commandes</p>
               <button
                 onClick={() => setShowOrderModal(true)}
-                className="bg-ink text-white text-xs px-3 py-1.5 rounded hover:bg-charcoal"
+                className="bg-ink text-white text-xs px-3 py-1.5 rounded hover:bg-charcoal self-start sm:self-auto"
               >
                 + Nouvelle commande
               </button>
@@ -289,41 +289,43 @@ export default function ClientDetail() {
             )}
 
             {filteredOrders.length > 0 && (
-              <table className="w-full text-sm text-left">
-                <thead className="bg-[#F9F9FF] text-grey-600">
-                  <tr>
-                    <th className="px-4 py-2">Date</th>
-                    <th className="px-4 py-2">Produits</th>
-                    <th className="px-4 py-2 text-right">Total</th>
-                    <th className="px-4 py-2">Statut</th>
-                    <th className="px-4 py-2 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((o) => (
-                    <tr key={o.id} className="border-t border-grey-200">
-                      <td className="px-4 py-2 text-grey-600 whitespace-nowrap">{formatDate(o.date)}</td>
-                      <td className="px-4 py-2 text-grey-600">
-                        {o.items?.length || 0} produit{(o.items?.length || 0) > 1 ? "s" : ""}
-                      </td>
-                      <td className="px-4 py-2 text-right font-medium text-ink">{o.total.toFixed(2)} DA</td>
-                      <td className="px-4 py-2">
-                        <span className="px-2 py-0.5 bg-grey-100 border border-grey-200 rounded text-xs text-grey-600">
-                          {orderStatusLabels[o.status] || o.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <button
-                          onClick={() => setEditingOrder(o)}
-                          className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100"
-                        >
-                          Modifier
-                        </button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left min-w-[600px]">
+                  <thead className="bg-[#F9F9FF] text-grey-600">
+                    <tr>
+                      <th className="px-4 py-2">Date</th>
+                      <th className="px-4 py-2">Produits</th>
+                      <th className="px-4 py-2 text-right">Total</th>
+                      <th className="px-4 py-2">Statut</th>
+                      <th className="px-4 py-2 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((o) => (
+                      <tr key={o.id} className="border-t border-grey-200">
+                        <td className="px-4 py-2 text-grey-600 whitespace-nowrap">{formatDate(o.date)}</td>
+                        <td className="px-4 py-2 text-grey-600">
+                          {o.items?.length || 0} produit{(o.items?.length || 0) > 1 ? "s" : ""}
+                        </td>
+                        <td className="px-4 py-2 text-right font-medium text-ink whitespace-nowrap">{o.total.toFixed(2)} DA</td>
+                        <td className="px-4 py-2">
+                          <span className="px-2 py-0.5 bg-grey-100 border border-grey-200 rounded text-xs text-grey-600 whitespace-nowrap">
+                            {orderStatusLabels[o.status] || o.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <button
+                            onClick={() => setEditingOrder(o)}
+                            className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100 whitespace-nowrap"
+                          >
+                            Modifier
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}

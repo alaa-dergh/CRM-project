@@ -17,7 +17,6 @@ function formatPeriodLabel(period) {
   return date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 }
 
-// Les 6 derniers mois (le mois en cours inclus), du plus ancien au plus récent.
 function lastMonths(count) {
   const months = [];
   const now = new Date();
@@ -83,7 +82,6 @@ export default function CommercialObjectives() {
   const revenueRemaining =
     revenueThisMonth.target != null ? Math.max(0, revenueThisMonth.target - revenueThisMonth.actual) : null;
 
-  // Historique CA (6 derniers mois) à partir des vraies commandes du commercial.
   const months = lastMonths(6);
   const monthlyRevenue = months.map((m) => {
     const total = orders
@@ -98,13 +96,13 @@ export default function CommercialObjectives() {
 
   return (
     <Layout title="Mes objectifs">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <p className="text-sm text-grey-600">
           Suivi de vos objectifs commerciaux — {formatPeriodLabel(currentPeriod())}.
         </p>
         {progress?.objective && (
           <span
-            className={`text-xs px-2 py-0.5 rounded border ${
+            className={`text-xs px-2 py-0.5 rounded border self-start sm:self-auto whitespace-nowrap ${
               isDefaultObjective
                 ? "bg-grey-100 text-grey-600 border-grey-200"
                 : "bg-[#F0F3FF] text-ink border-grey-200"
@@ -127,14 +125,13 @@ export default function CommercialObjectives() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        {/* Indicateur 1 : Visites */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white border border-grey-200 rounded-lg p-5">
           <p className="text-xs font-medium text-grey-500 uppercase tracking-wide mb-1">
             Indicateur 01
           </p>
           <h3 className="text-sm font-semibold text-ink mb-3">Visites aujourd'hui</h3>
-          <div className="flex items-baseline gap-2 mb-2">
+          <div className="flex items-baseline gap-2 mb-2 flex-wrap">
             <span className="text-3xl font-bold text-ink">
               {contactsPct !== null ? `${contactsPct}%` : "—"}
             </span>
@@ -155,13 +152,12 @@ export default function CommercialObjectives() {
           </p>
         </div>
 
-        {/* Indicateur 2 : Commandes */}
         <div className="bg-white border border-grey-200 rounded-lg p-5">
           <p className="text-xs font-medium text-grey-500 uppercase tracking-wide mb-1">
             Indicateur 02
           </p>
           <h3 className="text-sm font-semibold text-ink mb-3">Commandes aujourd'hui</h3>
-          <div className="flex items-baseline gap-2 mb-2">
+          <div className="flex items-baseline gap-2 mb-2 flex-wrap">
             <span className="text-3xl font-bold text-ink">
               {ordersPct !== null ? `${ordersPct}%` : "—"}
             </span>
@@ -181,13 +177,12 @@ export default function CommercialObjectives() {
           </p>
         </div>
 
-        {/* Indicateur 3 : CA */}
         <div className="bg-white border border-grey-200 rounded-lg p-5">
           <p className="text-xs font-medium text-grey-500 uppercase tracking-wide mb-1">
             Indicateur 03
           </p>
           <h3 className="text-sm font-semibold text-ink mb-3">Chiffre d'affaires réalisé</h3>
-          <div className="flex items-baseline gap-2 mb-2">
+          <div className="flex items-baseline gap-2 mb-2 flex-wrap">
             <span className="text-3xl font-bold text-ink">
               {revenuePct !== null ? `${revenuePct}%` : "—"}
             </span>
@@ -206,8 +201,7 @@ export default function CommercialObjectives() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {/* Historique CA (6 derniers mois, données réelles) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white border border-grey-200 rounded-lg p-5">
           <h2 className="text-sm font-semibold text-ink mb-1">Historique CA</h2>
           <p className="text-xs text-grey-500 mb-4">
@@ -221,12 +215,12 @@ export default function CommercialObjectives() {
                 <div key={m.key} className="flex-1 flex flex-col items-center gap-1">
                   <div className="w-full flex items-end justify-center h-24">
                     <div
-                      className={`w-8 rounded-t ${isCurrent ? "bg-ink" : "bg-grey-200"}`}
+                      className={`w-6 sm:w-8 rounded-t ${isCurrent ? "bg-ink" : "bg-grey-200"}`}
                       style={{ height: `${heightPct}%` }}
                       title={formatCurrency(m.total)}
                     />
                   </div>
-                  <span className={`text-[11px] capitalize ${isCurrent ? "text-ink font-medium" : "text-grey-500"}`}>
+                  <span className={`text-[10px] sm:text-[11px] capitalize ${isCurrent ? "text-ink font-medium" : "text-grey-500"}`}>
                     {m.label}
                   </span>
                 </div>
@@ -235,43 +229,44 @@ export default function CommercialObjectives() {
           </div>
         </div>
 
-        {/* Mes tâches (clients à forte rotation) */}
         <div className="bg-white border border-grey-200 rounded-lg overflow-hidden">
           <h2 className="text-sm font-semibold text-ink px-4 pt-4 pb-2">Mes tâches</h2>
           {!loading && tasks.length === 0 && (
             <p className="text-sm text-grey-600 px-4 pb-4">Aucune tâche assignée.</p>
           )}
           {tasks.length > 0 && (
-            <table className="w-full text-sm text-left">
-              <thead className="bg-[#F0F3FF] text-grey-600">
-                <tr>
-                  <th className="px-4 py-2">Client</th>
-                  <th className="px-4 py-2">Visites ce mois</th>
-                  <th className="px-4 py-2">Statut</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.map((t) => (
-                  <tr key={t.id} className="border-t border-grey-100">
-                    <td className="px-4 py-2 font-medium text-ink">{t.client?.name || "—"}</td>
-                    <td className="px-4 py-2 text-grey-600">
-                      {t.done} / {t.timesPerMonth}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded border ${
-                          t.completed
-                            ? "bg-green-50 text-green-700 border-green-200"
-                            : "bg-yellow-50 text-yellow-700 border-yellow-200"
-                        }`}
-                      >
-                        {t.completed ? "Objectif atteint" : "En cours"}
-                      </span>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left min-w-[420px]">
+                <thead className="bg-[#F0F3FF] text-grey-600">
+                  <tr>
+                    <th className="px-4 py-2">Client</th>
+                    <th className="px-4 py-2">Visites ce mois</th>
+                    <th className="px-4 py-2">Statut</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {tasks.map((t) => (
+                    <tr key={t.id} className="border-t border-grey-100">
+                      <td className="px-4 py-2 font-medium text-ink">{t.client?.name || "—"}</td>
+                      <td className="px-4 py-2 text-grey-600">
+                        {t.done} / {t.timesPerMonth}
+                      </td>
+                      <td className="px-4 py-2">
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded border whitespace-nowrap ${
+                            t.completed
+                              ? "bg-green-50 text-green-700 border-green-200"
+                              : "bg-yellow-50 text-yellow-700 border-yellow-200"
+                          }`}
+                        >
+                          {t.completed ? "Objectif atteint" : "En cours"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

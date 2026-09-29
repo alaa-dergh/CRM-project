@@ -4,7 +4,6 @@ import CommercialFormModal from "../components/CommercialFormModal";
 import api from "../lib/api";
 import { useNavigate } from "react-router-dom";
 
-
 export default function Commerciaux() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,19 +46,19 @@ export default function Commerciaux() {
 
   return (
     <Layout title="Équipe commerciale">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <p className="text-sm text-grey-600">
           {users.length} commerciaux enregistrés dans la console de gestion centrale.
         </p>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-ink text-white text-sm px-4 py-2 rounded hover:bg-charcoal"
+          className="bg-ink text-white text-sm px-4 py-2 rounded hover:bg-charcoal self-start sm:self-auto"
         >
           + Ajouter un commercial
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="bg-white border border-grey-200 rounded-lg p-4">
           <p className="text-2xl font-semibold text-ink">{activeCount}</p>
           <p className="text-sm text-grey-600">Commerciaux actifs</p>
@@ -90,60 +89,62 @@ export default function Commerciaux() {
         )}
 
         {!loading && filtered.length > 0 && (
-          <table className="w-full text-sm text-left">
-            <thead className="bg-grey-50 text-grey-600">
-              <tr>
-                <th className="px-4 py-2">Nom</th>
-                <th className="px-4 py-2">Email</th>
-                <th className="px-4 py-2">Région</th>
-                <th className="px-4 py-2">Clients</th>
-                <th className="px-4 py-2">Statut</th>
-                <th className="px-4 py-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((u) => (
-                <tr
-                  key={u.id}
-                  onClick={() => navigate(`/admin/reps/${u.id}`)}
-                  className="border-t border-grey-200 hover:bg-grey-50 cursor-pointer"
-                >
-                  <td className="px-4 py-2 font-medium text-ink">{u.name}</td>
-                  <td className="px-4 py-2 text-grey-600">{u.email}</td>
-                  <td className="px-4 py-2 text-grey-600">{u.region || "—"}</td>
-                  <td className="px-4 py-2 text-grey-600">{u._count?.clients ?? 0}</td>
-                  <td className="px-4 py-2">
-                    <span
-                      className={`px-2 py-0.5  rounded text-xs font-medium ${
-                        u.isActive
-                          ? "bg-ink text-white "
-                          : "bg-grey-100  text-grey-600 border border-grey-200"
-                      }`}
-                    >
-                      {u.isActive ? "Actif" : "Inactif"}
-                    </span>
-                  </td>
-                  <td
-                    className="px-4 py-2 text-right whitespace-nowrap"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      onClick={() => setEditingUser(u)}
-                      className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100 mr-1"
-                    >
-                      Éditer
-                    </button>
-                    <button
-                      onClick={() => toggleStatus(u)}
-                      className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100"
-                    >
-                      {u.isActive ? "Désactiver" : "Activer"}
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left min-w-[800px]">
+              <thead className="bg-grey-50 text-grey-600">
+                <tr>
+                  <th className="px-4 py-2">Nom</th>
+                  <th className="px-4 py-2">Email</th>
+                  <th className="px-4 py-2">Région</th>
+                  <th className="px-4 py-2">Clients</th>
+                  <th className="px-4 py-2">Statut</th>
+                  <th className="px-4 py-2 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((u) => (
+                  <tr
+                    key={u.id}
+                    onClick={() => navigate(`/admin/reps/${u.id}`)}
+                    className="border-t border-grey-200 hover:bg-grey-50 cursor-pointer"
+                  >
+                    <td className="px-4 py-2 font-medium text-ink">{u.name}</td>
+                    <td className="px-4 py-2 text-grey-600">{u.email}</td>
+                    <td className="px-4 py-2 text-grey-600">{u.region || "—"}</td>
+                    <td className="px-4 py-2 text-grey-600">{u._count?.clients ?? 0}</td>
+                    <td className="px-4 py-2">
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
+                          u.isActive
+                            ? "bg-ink text-white"
+                            : "bg-grey-100 text-grey-600 border border-grey-200"
+                        }`}
+                      >
+                        {u.isActive ? "Actif" : "Inactif"}
+                      </span>
+                    </td>
+                    <td
+                      className="px-4 py-2 text-right whitespace-nowrap"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => setEditingUser(u)}
+                        className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100 mr-1"
+                      >
+                        Éditer
+                      </button>
+                      <button
+                        onClick={() => toggleStatus(u)}
+                        className="text-xs px-2 py-1 border border-grey-200 rounded hover:bg-grey-100"
+                      >
+                        {u.isActive ? "Désactiver" : "Activer"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

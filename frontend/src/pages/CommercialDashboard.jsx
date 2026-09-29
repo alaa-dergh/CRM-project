@@ -49,17 +49,14 @@ export default function CommercialDashboard() {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   };
 
-  // --- Clients ---
   const totalClients = clients.length;
   const newClientsThisMonth = clients.filter((c) => isThisMonth(c.createdAt)).length;
   const activeClients = clients.filter((c) => c.status === "ACTIVE").length;
   const retentionRate = totalClients ? Math.round((activeClients / totalClients) * 100) : 0;
 
-  // --- Visites du mois (pour le panier moyen / taux de conversion) ---
   const visitsThisMonth = visits.filter((v) => isThisMonth(v.date));
   const visitsCountThisMonth = visitsThisMonth.length;
 
-  // --- Commandes du mois (pour le panier moyen) ---
   const ordersThisMonth = orders.filter((o) => isThisMonth(o.date));
   const ordersCountThisMonth = ordersThisMonth.length;
   const revenueFromOrdersList = ordersThisMonth.reduce((sum, o) => sum + o.total, 0);
@@ -70,7 +67,6 @@ export default function CommercialDashboard() {
       )
     : 0;
 
-  // --- Données objectifs / progression : uniquement depuis /objectives/progress ---
   const contactsToday = progress?.contactsToday || { actual: 0, target: null };
   const ordersToday = progress?.ordersToday || { actual: 0, minimum: null };
   const revenueThisMonth = progress?.revenueThisMonth || { actual: 0, target: null };
@@ -89,7 +85,6 @@ export default function CommercialDashboard() {
       ? ordersToday.actual >= ordersToday.minimum
       : null;
 
-  // objective === null alors que la requête a réussi -> aucun Objective en base pour ce commercial/cette période
   const noObjectiveDefined = !progressError && progress && !progress.objective;
 
   const toFollowUp = clients.filter((c) => c.status === "TO_FOLLOW_UP");
@@ -113,20 +108,19 @@ export default function CommercialDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        {/* Mes clients */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white border border-grey-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
               Mes clients
             </span>
             {newClientsThisMonth > 0 && (
-              <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded">
+              <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded whitespace-nowrap">
                 +{newClientsThisMonth} ce mois
               </span>
             )}
           </div>
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-2xl font-semibold text-ink">{totalClients}</span>
             <span className="text-xs text-grey-500">Comptes actifs : {activeClients}</span>
           </div>
@@ -136,17 +130,16 @@ export default function CommercialDashboard() {
           </div>
         </div>
 
-        {/* Visites aujourd'hui */}
         <div className="bg-white border border-grey-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
               Visites aujourd'hui
             </span>
-            <span className="text-xs px-2 py-0.5 bg-grey-100 text-grey-600 border border-grey-200 rounded">
+            <span className="text-xs px-2 py-0.5 bg-grey-100 text-grey-600 border border-grey-200 rounded whitespace-nowrap">
               {contactsToday.target != null ? `Obj: ${contactsToday.target}/jour` : "Objectif non défini"}
             </span>
           </div>
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-2xl font-semibold text-ink">{contactsToday.actual}</span>
             <span className="text-xs text-grey-500">Ce mois : {visitsCountThisMonth}</span>
           </div>
@@ -158,17 +151,16 @@ export default function CommercialDashboard() {
           </div>
         </div>
 
-        {/* Commandes aujourd'hui */}
         <div className="bg-white border border-grey-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
               Commandes aujourd'hui
             </span>
-            <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded">
+            <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded whitespace-nowrap">
               {conversionRate}% conv.
             </span>
           </div>
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-2xl font-semibold text-ink">{ordersToday.actual}</span>
             <span className="text-xs text-grey-500">
               {ordersToday.minimum != null ? `Min: ${ordersToday.minimum}/jour` : "Minimum non défini"}
@@ -180,19 +172,18 @@ export default function CommercialDashboard() {
           </div>
         </div>
 
-        {/* CA ce mois */}
         <div className="bg-white border border-grey-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
               CA ce mois
             </span>
-            <span className="text-xs px-2 py-0.5 bg-grey-100 text-grey-600 border border-grey-200 rounded">
+            <span className="text-xs px-2 py-0.5 bg-grey-100 text-grey-600 border border-grey-200 rounded whitespace-nowrap">
               {revenueThisMonth.target != null
                 ? `Obj: ${formatCurrency(revenueThisMonth.target)}`
                 : "Objectif non défini"}
             </span>
           </div>
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-2xl font-semibold text-ink">
               {formatCurrency(revenueThisMonth.actual)}
             </span>
@@ -206,72 +197,74 @@ export default function CommercialDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {/* Mes tâches (clients à forte rotation) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white border border-grey-200 rounded-lg overflow-hidden">
           <h2 className="text-sm font-semibold text-ink px-4 pt-4 pb-2">Mes tâches</h2>
           {!loading && tasks.length === 0 && (
             <p className="text-sm text-grey-600 px-4 pb-4">Aucune tâche assignée.</p>
           )}
           {tasks.length > 0 && (
-            <table className="w-full text-sm text-left">
-              <thead className="bg-[#F0F3FF] text-grey-600">
-                <tr>
-                  <th className="px-4 py-2">Client</th>
-                  <th className="px-4 py-2">Visites ce mois</th>
-                  <th className="px-4 py-2">Statut</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.map((t) => (
-                  <tr key={t.id} className="border-t border-grey-100">
-                    <td className="px-4 py-2 font-medium text-ink">{t.client?.name || "—"}</td>
-                    <td className="px-4 py-2 text-grey-600">
-                      {t.done} / {t.timesPerMonth}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded border ${
-                          t.completed
-                            ? "bg-green-50 text-green-700 border-green-200"
-                            : "bg-yellow-50 text-yellow-700 border-yellow-200"
-                        }`}
-                      >
-                        {t.completed ? "Objectif atteint" : "En cours"}
-                      </span>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left min-w-[420px]">
+                <thead className="bg-[#F0F3FF] text-grey-600">
+                  <tr>
+                    <th className="px-4 py-2">Client</th>
+                    <th className="px-4 py-2">Visites ce mois</th>
+                    <th className="px-4 py-2">Statut</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {tasks.map((t) => (
+                    <tr key={t.id} className="border-t border-grey-100">
+                      <td className="px-4 py-2 font-medium text-ink">{t.client?.name || "—"}</td>
+                      <td className="px-4 py-2 text-grey-600">
+                        {t.done} / {t.timesPerMonth}
+                      </td>
+                      <td className="px-4 py-2">
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded border whitespace-nowrap ${
+                            t.completed
+                              ? "bg-green-50 text-green-700 border-green-200"
+                              : "bg-yellow-50 text-yellow-700 border-yellow-200"
+                          }`}
+                        >
+                          {t.completed ? "Objectif atteint" : "En cours"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
-        {/* Clients à relancer */}
         <div className="bg-white border border-grey-200 rounded-lg overflow-hidden">
           <h2 className="text-sm font-semibold text-ink px-4 pt-4 pb-2">Clients à relancer</h2>
           {toFollowUp.length === 0 && (
             <p className="text-sm text-grey-600 px-4 pb-4">Aucun client à relancer pour le moment.</p>
           )}
           {toFollowUp.length > 0 && (
-            <table className="w-full text-sm text-left">
-              <thead className="bg-[#F0F3FF] text-grey-600">
-                <tr>
-                  <th className="px-4 py-2">Nom</th>
-                  <th className="px-4 py-2">Contact</th>
-                  <th className="px-4 py-2">Dernière interaction</th>
-                </tr>
-              </thead>
-              <tbody>
-                {toFollowUp.map((c) => (
-                  <tr key={c.id} className="border-t border-grey-100">
-                    <td className="px-4 py-2 font-medium text-ink">{c.name}</td>
-                    <td className="px-4 py-2 text-grey-600">{c.phone || "—"}</td>
-                    <td className="px-4 py-2 text-grey-600">{formatDate(c.lastInteractionDate)}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left min-w-[420px]">
+                <thead className="bg-[#F0F3FF] text-grey-600">
+                  <tr>
+                    <th className="px-4 py-2">Nom</th>
+                    <th className="px-4 py-2">Contact</th>
+                    <th className="px-4 py-2">Dernière interaction</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {toFollowUp.map((c) => (
+                    <tr key={c.id} className="border-t border-grey-100">
+                      <td className="px-4 py-2 font-medium text-ink">{c.name}</td>
+                      <td className="px-4 py-2 text-grey-600">{c.phone || "—"}</td>
+                      <td className="px-4 py-2 text-grey-600 whitespace-nowrap">{formatDate(c.lastInteractionDate)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

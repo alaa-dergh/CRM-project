@@ -22,7 +22,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      // GET /users filtre déjà côté backend sur role: "COMMERCIAL" et ne renvoie pas le champ role
       api.get("/users").then((res) => setCommerciaux(res.data)).catch(() => {}),
       api.get("/clients").then((res) => setClients(res.data)).catch(() => {}),
       api.get("/visits").then((res) => setVisits(res.data)).catch(() => {}),
@@ -44,13 +43,11 @@ export default function AdminDashboard() {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   };
 
-  // Objectif effectif d'un commercial : personnalisé s'il existe, sinon l'objectif par défaut (commercialId null)
   const defaultObjective = objectives.find((o) => o.commercialId == null) || null;
   function effectiveObjectiveFor(commercialId) {
     return objectives.find((o) => o.commercialId === commercialId) || defaultObjective;
   }
 
-  // --- KPI globaux ---
   const totalClients = clients.length;
   const newClientsThisMonth = clients.filter((c) => isThisMonth(c.createdAt)).length;
   const totalProspects = clients.filter((c) => c.status === "PROSPECT").length;
@@ -74,7 +71,6 @@ export default function AdminDashboard() {
   );
   const revenuePct = revenueTarget ? Math.round((revenueThisMonth / revenueTarget) * 100) : null;
 
-  // --- Performance par commercial (mois en cours) ---
   const performance = commerciaux.map((c) => {
     const cVisits = visitsThisMonth.filter((v) => v.commercialId === c.id).length;
     const cNewClients = clients.filter((cl) => cl.commercialId === c.id && isThisMonth(cl.createdAt)).length;
@@ -129,15 +125,14 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-5 gap-4 mb-6">
-        {/* Total clients */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         <div className="bg-white border border-grey-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
               Total clients
             </span>
             {newClientsThisMonth > 0 && (
-              <span className="text-xs px-2 py-0.5 bg-[#348133] text-white border border-green-200 rounded">
+              <span className="text-xs px-2 py-0.5 bg-[#348133] text-white border border-green-200 rounded whitespace-nowrap">
                 +{newClientsThisMonth}
               </span>
             )}
@@ -145,7 +140,6 @@ export default function AdminDashboard() {
           <span className="text-2xl font-semibold text-ink">{totalClients}</span>
         </div>
 
-        {/* Total prospects */}
         <div className="bg-white border border-grey-200 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
@@ -155,43 +149,40 @@ export default function AdminDashboard() {
           <span className="text-2xl font-semibold text-ink">{totalProspects}</span>
         </div>
 
-        {/* Visites aujourd'hui */}
         <div className="bg-white border border-grey-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
               Visites aujourd'hui
             </span>
-            <span className="text-xs px-2 py-0.5 bg-grey-100 text-grey-600 border border-grey-200 rounded">
+            <span className="text-xs px-2 py-0.5 bg-grey-100 text-grey-600 border border-grey-200 rounded whitespace-nowrap">
               {visitsTargetToday ? `Obj: ${visitsTargetToday}` : "Objectif non défini"}
             </span>
           </div>
           <span className="text-2xl font-semibold text-ink">{visitsToday}</span>
         </div>
 
-        {/* Commandes ce mois */}
         <div className="bg-white border border-grey-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
               Commandes ce mois
             </span>
-            <span className="text-xs mx-1 px-2 py-0.5 bg-[#348133] text-white border border-green-200 rounded">
+            <span className="text-xs px-2 py-0.5 bg-[#348133] text-white border border-green-200 rounded whitespace-nowrap">
               {conversionRate}% conv.
             </span>
           </div>
           <span className="text-2xl font-semibold text-ink">{ordersThisMonth.length}</span>
         </div>
 
-        {/* CA ce mois */}
         <div className="bg-white border border-grey-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs font-medium text-grey-600 uppercase tracking-wide">
               CA ce mois
             </span>
-            <span className="text-xs px-2 py-0.5 bg-grey-100 text-grey-600 border border-grey-200 rounded">
+            <span className="text-xs px-2 py-0.5 bg-grey-100 text-grey-600 border border-grey-200 rounded whitespace-nowrap">
               {revenueTarget ? `Obj: ${formatCurrency(revenueTarget)}` : "Objectif non défini"}
             </span>
           </div>
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-2xl font-semibold text-ink">{formatCurrency(revenueThisMonth)}</span>
             {revenuePct !== null && (
               <span className="text-xs text-grey-500">{revenuePct}%</span>
@@ -200,7 +191,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Performance par commercial */}
       <div className="bg-white border border-grey-200 rounded overflow-hidden">
         <div className="px-4 pt-4 pb-2">
           <h2 className="text-sm font-semibold text-ink">Performance par commercial</h2>
@@ -214,64 +204,66 @@ export default function AdminDashboard() {
         )}
 
         {performance.length > 0 && (
-          <table className="w-full text-sm text-left">
-            <thead className="bg-[#F0F3FF] text-grey-600">
-              <tr>
-                <th className="px-4 py-2">Commercial</th>
-                <th className="px-4 py-2">Visites</th>
-                <th className="px-4 py-2">Nouveaux clients</th>
-                <th className="px-4 py-2">Commandes</th>
-                <th className="px-4 py-2">CA réalisé</th>
-                <th className="px-4 py-2">Objectif CA</th>
-                <th className="px-4 py-2">Taux (%)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {performance.map((p) => (
-                <tr key={p.id} className="border-t border-grey-100">
-                  <td className="px-4 py-2 font-medium text-ink">{p.name}</td>
-                  <td className="px-4 py-2 text-grey-600">{p.visits}</td>
-                  <td className="px-4 py-2 text-grey-600">{p.newClients}</td>
-                  <td className="px-4 py-2 text-grey-600">{p.orders}</td>
-                  <td className="px-4 py-2 text-grey-600">{formatCurrency(p.revenue)}</td>
-                  <td className="px-4 py-2 text-grey-600">
-                    {p.target ? (
-                      <span className="inline-flex items-center gap-1">
-                        {formatCurrency(p.target)}
-                        {p.isDefaultTarget && (
-                          <span className="text-[10px] px-1 py-0.5 bg-grey-100 text-grey-500 rounded uppercase">
-                            défaut
-                          </span>
-                        )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left min-w-[720px]">
+              <thead className="bg-[#F0F3FF] text-grey-600">
+                <tr>
+                  <th className="px-4 py-2">Commercial</th>
+                  <th className="px-4 py-2">Visites</th>
+                  <th className="px-4 py-2">Nouveaux clients</th>
+                  <th className="px-4 py-2">Commandes</th>
+                  <th className="px-4 py-2">CA réalisé</th>
+                  <th className="px-4 py-2">Objectif CA</th>
+                  <th className="px-4 py-2">Taux (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {performance.map((p) => (
+                  <tr key={p.id} className="border-t border-grey-100">
+                    <td className="px-4 py-2 font-medium text-ink whitespace-nowrap">{p.name}</td>
+                    <td className="px-4 py-2 text-grey-600">{p.visits}</td>
+                    <td className="px-4 py-2 text-grey-600">{p.newClients}</td>
+                    <td className="px-4 py-2 text-grey-600">{p.orders}</td>
+                    <td className="px-4 py-2 text-grey-600 whitespace-nowrap">{formatCurrency(p.revenue)}</td>
+                    <td className="px-4 py-2 text-grey-600 whitespace-nowrap">
+                      {p.target ? (
+                        <span className="inline-flex items-center gap-1">
+                          {formatCurrency(p.target)}
+                          {p.isDefaultTarget && (
+                            <span className="text-[10px] px-1 py-0.5 bg-grey-100 text-grey-500 rounded uppercase">
+                              défaut
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      <span className={`text-xs px-2 py-0.5 rounded border whitespace-nowrap ${pctBadgeClass(p.pct)}`}>
+                        {p.pct !== null ? `${p.pct}%` : "—"}
                       </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-grey-200 bg-grey-200 font-medium">
+                  <td className="px-4 py-2 text-ink whitespace-nowrap">Total consolidation</td>
+                  <td className="px-4 py-2 text-ink">{totals.visits}</td>
+                  <td className="px-4 py-2 text-ink">{totals.newClients}</td>
+                  <td className="px-4 py-2 text-ink">{totals.orders}</td>
+                  <td className="px-4 py-2 text-ink whitespace-nowrap">{formatCurrency(totals.revenue)}</td>
+                  <td className="px-4 py-2 text-ink whitespace-nowrap">{totals.target ? formatCurrency(totals.target) : "—"}</td>
                   <td className="px-4 py-2">
-                    <span className={`text-xs px-2 py-0.5 rounded border ${pctBadgeClass(p.pct)}`}>
-                      {p.pct !== null ? `${p.pct}%` : "—"}
+                    <span className={`text-xs px-2 py-0.5 rounded border whitespace-nowrap ${pctBadgeClass(totalPct)}`}>
+                      {totalPct !== null ? `${totalPct}%` : "—"}
                     </span>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-grey-200 bg-grey-200 font-medium">
-                <td className="px-4 py-2 text-ink">Total consolidation</td>
-                <td className="px-4 py-2 text-ink">{totals.visits}</td>
-                <td className="px-4 py-2 text-ink">{totals.newClients}</td>
-                <td className="px-4 py-2 text-ink">{totals.orders}</td>
-                <td className="px-4 py-2 text-ink">{formatCurrency(totals.revenue)}</td>
-                <td className="px-4 py-2 text-ink">{totals.target ? formatCurrency(totals.target) : "—"}</td>
-                <td className="px-4 py-2">
-                  <span className={`text-xs px-2 py-0.5 rounded border ${pctBadgeClass(totalPct)}`}>
-                    {totalPct !== null ? `${totalPct}%` : "—"}
-                  </span>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+              </tfoot>
+            </table>
+          </div>
         )}
       </div>
     </Layout>
